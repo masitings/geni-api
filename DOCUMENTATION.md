@@ -10,14 +10,13 @@ Comprehensive guide to `masitings/geni-api`: the static-analysis OpenAPI 3.1.0 d
 2. [Installation & Setup](#2-installation--setup)
 3. [Configuration Reference (`config/geni.php`)](#3-configuration-reference-configgeniphp)
 4. [Documentation Gating & Authentication (`docs_auth`)](#4-documentation-gating--authentication-docs_auth)
-5. [Sidebar Promo Card (`promo`)](#5-sidebar-promo-card-promo)
-6. [Automatic Static Inference](#6-automatic-static-inference)
-7. [PHP Attributes (`Geni\Laravel\Attributes\*`)](#7-php-attributes-genilaravelattributes)
-8. [Supported PHPDoc Annotations](#8-supported-phpdoc-annotations)
-9. [Multi-Document & API Versioning Support](#9-multi-document--api-versioning-support)
-10. [Custom Docs Renderers](#10-custom-docs-renderers)
-11. [Artisan Commands](#11-artisan-commands)
-12. [End-to-End Example](#12-end-to-end-example)
+5. [Automatic Static Inference](#5-automatic-static-inference)
+6. [PHP Attributes (`Geni\Laravel\Attributes\*`)](#6-php-attributes-genilaravelattributes)
+7. [Supported PHPDoc Annotations](#7-supported-phpdoc-annotations)
+8. [Multi-Document & API Versioning Support](#8-multi-document--api-versioning-support)
+9. [Custom Docs Renderers](#9-custom-docs-renderers)
+10. [Artisan Commands](#10-artisan-commands)
+11. [End-to-End Example](#11-end-to-end-example)
 
 ---
 
@@ -162,29 +161,7 @@ To disable authentication completely, leave `username` or `password` set to `nul
 
 ---
 
-## 5. Sidebar Promo Card (`promo`)
-
-An optional promotional banner rendered in the docs sidebar footer. Disabled by default; the package stays content-neutral until a host app opts in.
-
-```php
-'promo' => [
-    'enabled' => false,
-    'title' => null,
-    'subtitle' => null,
-    'button_text' => 'Learn more',
-    'button_url' => null,
-    'icon' => null,       // light-mode icon URL
-    'icon_dark' => null,  // dark-mode icon URL (preferred; used as-is since the card background is fixed dark)
-    'bg_color' => '#022c22',
-],
-```
-
-- `'button_url'` is validated to `http://`/`https://` only; other schemes (e.g. `javascript:`) are silently dropped.
-- When `'button_url'` is set, the whole card becomes a clickable link (`target="_blank"`).
-
----
-
-## 6. Automatic Static Inference
+## 5. Automatic Static Inference
 
 Geni automatically infers documentation without requiring any annotations:
 
@@ -226,7 +203,7 @@ Mapped validation rules:
 
 ---
 
-## 7. PHP Attributes (`Geni\Laravel\Attributes\*`)
+## 6. PHP Attributes (`Geni\Laravel\Attributes\*`)
 
 Use PHP 8 attributes to customize and override inferred metadata.
 
@@ -322,7 +299,7 @@ class InvoiceController extends Controller
 
 ---
 
-## 8. Supported PHPDoc Annotations
+## 7. Supported PHPDoc Annotations
 
 Geni provides 100% drop-in compatibility with Scramble PHPDoc tags:
 
@@ -349,7 +326,7 @@ Geni provides 100% drop-in compatibility with Scramble PHPDoc tags:
 
 ---
 
-## 9. Multi-Document & API Versioning Support
+## 8. Multi-Document & API Versioning Support
 
 Geni supports hosting multiple independent API versions or domain-specific specifications (e.g. `v1`, `v2`, `internal`):
 
@@ -380,7 +357,7 @@ Geni supports hosting multiple independent API versions or domain-specific speci
 
 ---
 
-## 10. Custom Docs Renderers
+## 9. Custom Docs Renderers
 
 You can implement custom documentation viewports by implementing `Geni\Laravel\Renderer`:
 
@@ -413,7 +390,7 @@ Register your custom renderer in `config/geni.php`:
 
 ---
 
-## 11. Artisan Commands
+## 10. Artisan Commands
 
 ### `geni:export`
 Generates and writes the OpenAPI specification to a file:
@@ -503,7 +480,7 @@ php artisan geni:clear --api=default
 
 ---
 
-## 12. End-to-End Example
+## 11. End-to-End Example
 
 ### Controller (`app/Http/Controllers/Api/ProjectController.php`)
 

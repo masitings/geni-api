@@ -273,32 +273,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Sidebar Promo Card
-    |--------------------------------------------------------------------------
-    |
-    | Optional promotional card rendered at the bottom of the docs sidebar.
-    | Disabled by default, the package stays content-neutral until a host
-    | app opts in with its own title/subtitle/button.
-    |
-    */
-
-    'promo' => [
-        'enabled' => false,
-        'title' => null,
-        'subtitle' => null,
-        'button_text' => 'Learn more',
-        'button_url' => null,
-        // Optional icon images; falls back to a generic bolt icon when both are null.
-        // 'icon' shows in light mode, 'icon_dark' shows in dark mode.
-        'icon' => null,
-        'icon_dark' => null,
-        // Card background color. Any valid CSS color. The card stays this
-        // dark, fixed look regardless of the docs light/dark theme.
-        'bg_color' => '#022c22',
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | Model Context Protocol (MCP) Tool Manifest & Real Execution
     |--------------------------------------------------------------------------
     |
