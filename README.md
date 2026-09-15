@@ -151,3 +151,7 @@ For in-depth guides on all features, custom renderers, security schemes, and PHP
 ## License
 
 The MIT License (MIT). Please see [LICENSE](LICENSE) for more information.
+
+---
+
+[![Support childhood cancer research](.github/assets/banner.jpg)](https://pcrf1.app.neoncrm.com/campaigns/2026-pcrf---childhood-cancer-awareness)
