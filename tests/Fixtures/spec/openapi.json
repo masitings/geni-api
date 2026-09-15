@@ -86,7 +86,7 @@
                         {
                             "file": "tests/Fixtures/App/Http/Resources/PostResource.php",
                             "line": 23,
-                            "reason": "Could not resolve type for JsonResource::toArray() key \"published\" \u2014 marking unresolved"
+                            "reason": "Could not resolve type for JsonResource::toArray() key \"published\": marking unresolved"
                         }
                     ]
                 }
@@ -142,7 +142,7 @@
                         {
                             "file": "tests/Fixtures/App/Http/Resources/PostResource.php",
                             "line": 23,
-                            "reason": "Could not resolve type for JsonResource::toArray() key \"published\" \u2014 marking unresolved"
+                            "reason": "Could not resolve type for JsonResource::toArray() key \"published\": marking unresolved"
                         }
                     ]
                 }
@@ -240,7 +240,7 @@
                         {
                             "file": "tests/Fixtures/App/Http/Resources/PostResource.php",
                             "line": 23,
-                            "reason": "Could not resolve type for JsonResource::toArray() key \"published\" \u2014 marking unresolved"
+                            "reason": "Could not resolve type for JsonResource::toArray() key \"published\": marking unresolved"
                         }
                     ]
                 }
