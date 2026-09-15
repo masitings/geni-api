@@ -4,6 +4,8 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-15
+
 ### Added
 
 - Multi-document routing and interactive API version switcher dropdown in Blade docs UI:
@@ -19,6 +21,7 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 - Response body and response example panels now use a fixed dark background instead of one that blended into their dark-mode container.
 - Response status badges and the version switcher dropdown no longer overflow on narrow screens or with many entries.
 - DocsFormAuth middleware now returns 401 JSON (instead of an HTML redirect) for unauthenticated requests to versioned API JSON spec paths (`docs/api/{name}.json`) configured via `geni.apis`.
+- Version switcher dropdown now displays the configured `title` as-is instead of appending a `(v{version})` suffix.
 
 ## [0.10.0] - 2026-09-14
 
