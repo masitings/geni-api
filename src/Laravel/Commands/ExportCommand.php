@@ -93,7 +93,7 @@ final class ExportCommand extends Command
         }
 
         // 4. Write to file
-        $destination = base_path($path);
+        $destination = file_exists($path) || str_starts_with($path, '/') ? $path : base_path($path);
         $directory = dirname($destination);
         if (! is_dir($directory)) {
             mkdir($directory, 0755, true);

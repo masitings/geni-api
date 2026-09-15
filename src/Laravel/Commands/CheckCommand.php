@@ -26,9 +26,8 @@ final class CheckCommand extends Command
     {
         $apiName = $this->option('api') ?: 'default';
         $path = $this->option('path') ?: 'openapi.json';
-        $filePath = file_exists($path)
-            ? realpath($path)
-            : (file_exists(base_path($path)) ? base_path($path) : base_path($path));
+        $resolvedPath = file_exists($path) || str_starts_with($path, '/') ? $path : base_path($path);
+        $filePath = file_exists($resolvedPath) ? realpath($resolvedPath) : $resolvedPath;
 
         if (! file_exists((string) $filePath)) {
             $this->error(sprintf('Committed specification file not found at: %s', $path));

@@ -6,7 +6,9 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ### Fixed
 
-- `geni:check` compared the generated and committed OpenAPI documents with strict `===` on decoded PHP arrays, which is order-sensitive for JSON objects. Route/reflection iteration order can differ across environments (e.g. local macOS vs CI Ubuntu) with identical document content, causing spurious drift failures. Comparison now recursively sorts object keys (canonicalizes) before comparing while preserving list-array order, which is semantically significant.
+- **`geni:export`/`geni:check` `--path` resolution**: both commands always ran the given path through `base_path()` even when it was already absolute, silently doubling/mangling the destination (e.g. writing into `vendor/orchestra/testbench-core/laravel/...` when run under Testbench instead of the intended path). Now mirrors `geni:mcp`'s existing guard: an absolute path (or one that already exists) is used as-is.
+- **`InferenceDiagnostic` embedded absolute filesystem paths** (e.g. a developer's home directory) into the OpenAPI document's `x-geni-unresolved` extension. Since these paths are baked into the generated document, a spec produced on one machine would never match the same spec regenerated on another (including CI), making `geni:check` report false drift for content that hadn't actually changed. Diagnostic file paths are now relativized against the current working directory before being serialized.
+- `geni:check` compared the generated and committed OpenAPI documents with strict `===` on decoded PHP arrays, which is order-sensitive for JSON objects. Comparison now recursively sorts object keys (canonicalizes) before comparing while preserving list-array order, which is semantically significant, so key-emission order alone can no longer produce a false positive.
 
 ## [1.0.0] - 2026-09-15
 

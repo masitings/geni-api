@@ -84,7 +84,7 @@
                 "x-geni-unresolved": {
                     "x-geni-unresolved": [
                         {
-                            "file": "/Users/rafihalilintar/Codes/PHP/Laravel/packaging/packages/masitings/geni/tests/Fixtures/App/Http/Resources/PostResource.php",
+                            "file": "tests/Fixtures/App/Http/Resources/PostResource.php",
                             "line": 23,
                             "reason": "Could not resolve type for JsonResource::toArray() key \"published\" \u2014 marking unresolved"
                         }
@@ -140,7 +140,7 @@
                 "x-geni-unresolved": {
                     "x-geni-unresolved": [
                         {
-                            "file": "/Users/rafihalilintar/Codes/PHP/Laravel/packaging/packages/masitings/geni/tests/Fixtures/App/Http/Resources/PostResource.php",
+                            "file": "tests/Fixtures/App/Http/Resources/PostResource.php",
                             "line": 23,
                             "reason": "Could not resolve type for JsonResource::toArray() key \"published\" \u2014 marking unresolved"
                         }
@@ -238,7 +238,7 @@
                 "x-geni-unresolved": {
                     "x-geni-unresolved": [
                         {
-                            "file": "/Users/rafihalilintar/Codes/PHP/Laravel/packaging/packages/masitings/geni/tests/Fixtures/App/Http/Resources/PostResource.php",
+                            "file": "tests/Fixtures/App/Http/Resources/PostResource.php",
                             "line": 23,
                             "reason": "Could not resolve type for JsonResource::toArray() key \"published\" \u2014 marking unresolved"
                         }
