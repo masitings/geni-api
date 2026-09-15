@@ -1,0 +1,14 @@
+providers:
+  - Geni\Laravel\GeniServiceProvider
+  - Tests\Fixtures\RouteServiceProvider
+
+migrations:
+  - tests/Fixtures/App/database/migrations
+
+workbench:
+  discovers:
+    web: false
+    api: false
+    commands: false
+    components: false
+    views: false
