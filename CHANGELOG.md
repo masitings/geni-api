@@ -4,6 +4,8 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-16
+
 ### Fixed
 
 - **`geni:export`/`geni:check` `--path` resolution**: both commands always ran the given path through `base_path()` even when it was already absolute, silently doubling/mangling the destination (e.g. writing into `vendor/orchestra/testbench-core/laravel/...` when run under Testbench instead of the intended path). Now mirrors `geni:mcp`'s existing guard: an absolute path (or one that already exists) is used as-is.
