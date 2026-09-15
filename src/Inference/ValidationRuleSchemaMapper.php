@@ -399,7 +399,7 @@ final class ValidationRuleSchemaMapper
                     $diagnostics[] = new InferenceDiagnostic(
                         $file,
                         $line,
-                        sprintf('Could not statically resolve column "%s" on table "%s" for exists rule — falling back to string', $columnName, $tableName)
+                        sprintf('Could not statically resolve column "%s" on table "%s" for exists rule: falling back to string', $columnName, $tableName)
                     );
                 }
 
@@ -415,7 +415,7 @@ final class ValidationRuleSchemaMapper
             $diagnostics[] = new InferenceDiagnostic(
                 $file,
                 $line,
-                sprintf('Unsupported validation rule "%s" on field "%s" — skipped in Phase 4', $rule, $fieldName)
+                sprintf('Unsupported validation rule "%s" on field "%s": skipped in Phase 4', $rule, $fieldName)
             );
         }
 

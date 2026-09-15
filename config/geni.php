@@ -60,7 +60,7 @@ return [
     |
     | When set, this closure is called instead of prefix-based discovery. It
     | receives no arguments and must return an array of Illuminate\Route
-    | objects (or an iterable). This lives in Geni\Laravel — the only
+    | objects (or an iterable). This lives in Geni\Laravel, the only
     | namespace permitted to touch the live route collection.
     |
     */
@@ -277,7 +277,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Optional promotional card rendered at the bottom of the docs sidebar.
-    | Disabled by default — the package stays content-neutral until a host
+    | Disabled by default, the package stays content-neutral until a host
     | app opts in with its own title/subtitle/button.
     |
     */

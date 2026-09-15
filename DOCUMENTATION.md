@@ -1,6 +1,6 @@
 # Geni Documentation
 
-Comprehensive guide to `masitings/geni-api` — the static-analysis OpenAPI 3.1.0 documentation generator for Laravel.
+Comprehensive guide to `masitings/geni-api`: the static-analysis OpenAPI 3.1.0 documentation generator for Laravel.
 
 ---
 
@@ -110,7 +110,7 @@ All settings are configured in `config/geni.php`:
 - `'docs_json_path' => 'docs/api.json'`: URI where the raw OpenAPI 3.1.0 specification is served.
 - `'docs_ui_path' => 'docs/api'`: URI where the interactive documentation portal is rendered.
 - `'middleware' => []`: Custom middleware applied to documentation routes.
-- `'restrict_to_local' => true`: Docs routes 404 outside the `local` environment via `RestrictToLocalEnv`. Set to `false` to allow docs in other environments (e.g. staging) — pair this with `docs_auth` so the routes stay access-controlled.
+- `'restrict_to_local' => true`: Docs routes 404 outside the `local` environment via `RestrictToLocalEnv`. Set to `false` to allow docs in other environments (e.g. staging); pair this with `docs_auth` so the routes stay access-controlled.
 
 ### Schema Overrides
 
@@ -127,7 +127,7 @@ All settings are configured in `config/geni.php`:
 - `'mcp.nest_body' => false`: Merge request body parameters into root object (`false`) vs nest under `'body'` (`true`).
 - `'mcp.execution.base_url' => env('GENI_MCP_BASE_URL')`: Base URL for real HTTP dispatch in `tools/call` (falls back to `app.url` or `url('/')`).
 - `'mcp.execution.timeout' => 15`: Timeout in seconds for tool execution requests.
-- `'mcp.execution.verify_ssl' => true`: SSL certificate verification for tool execution requests. Only disable for local development against self-signed certs — never in production.
+- `'mcp.execution.verify_ssl' => true`: SSL certificate verification for tool execution requests. Only disable for local development against self-signed certs; never in production.
 - `'mcp.execution.auth.default_bearer_token' => env('GENI_MCP_BEARER_TOKEN')`: Default Bearer token attached to tool execution requests.
 - `'mcp.execution.auth.default_api_key' => env('GENI_MCP_API_KEY')`: Default API key attached to tool execution requests.
 - `'mcp.execution.auth.api_key_header' => 'X-API-Key'`: Header name for API key authentication.
@@ -164,7 +164,7 @@ To disable authentication completely, leave `username` or `password` set to `nul
 
 ## 5. Sidebar Promo Card (`promo`)
 
-An optional promotional banner rendered in the docs sidebar footer. Disabled by default — the package stays content-neutral until a host app opts in.
+An optional promotional banner rendered in the docs sidebar footer. Disabled by default; the package stays content-neutral until a host app opts in.
 
 ```php
 'promo' => [

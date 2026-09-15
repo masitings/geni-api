@@ -48,7 +48,7 @@
     <!-- Alpine.js CDN -->
     <script defer src="{{ $configuration['alpine_cdn_url'] ?? 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js' }}"></script>
 
-    <!-- Prism.js CDN — real syntax highlighting for code samples -->
+    <!-- Prism.js CDN, real syntax highlighting for code samples -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>

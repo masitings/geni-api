@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Protect documentation routes with HTTP Basic Auth using
- * config('geni.docs_auth') credentials — not tied to the app's
+ * config('geni.docs_auth') credentials, not tied to the app's
  * own user table/guard. Triggers the browser's native sign-in prompt.
  */
 final class BasicAuthDocs

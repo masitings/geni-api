@@ -111,7 +111,7 @@ final class RouteDiscoverer
         }
 
         if (is_string($uses) && str_contains($uses, '::')) {
-            // [Controller::class] — single-action controller
+            // [Controller::class], single-action controller
             [$class] = explode('::class', $uses, 2);
 
             return ['type' => 'controller', 'class' => $class, 'method' => '__invoke'];

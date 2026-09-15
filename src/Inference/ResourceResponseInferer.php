@@ -791,7 +791,7 @@ final class ResourceResponseInferer
                 $diagnostics[] = new InferenceDiagnostic(
                     $resourceFile ?: 'unknown',
                     $item->getLine(),
-                    'Array item without string key in JsonResource::toArray() — skipped'
+                    'Array item without string key in JsonResource::toArray(): skipped'
                 );
 
                 continue;
@@ -801,7 +801,7 @@ final class ResourceResponseInferer
                 $diagnostics[] = new InferenceDiagnostic(
                     $resourceFile ?: 'unknown',
                     $item->key->getLine(),
-                    'Non-string field key in JsonResource::toArray() — skipped'
+                    'Non-string field key in JsonResource::toArray(): skipped'
                 );
 
                 continue;
@@ -816,7 +816,7 @@ final class ResourceResponseInferer
                 $diagnostics[] = new InferenceDiagnostic(
                     $resourceFile ?: 'unknown',
                     $item->getLine(),
-                    sprintf('Could not resolve type for JsonResource::toArray() key "%s" — marking unresolved', $fieldName)
+                    sprintf('Could not resolve type for JsonResource::toArray() key "%s": marking unresolved', $fieldName)
                 );
                 $type = 'string';
             }

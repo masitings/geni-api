@@ -8,7 +8,7 @@ use Geni\Inference\DocumentAssembler;
  * Regression tests for two bugs found while dogfooding real annotations:
  *
  * 1. Class-level @tags (and other class docblock tags) were silently
- *    dropped — DocumentAssembler hardcoded $docClass = [] instead of
+ *    dropped, DocumentAssembler hardcoded $docClass = [] instead of
  *    parsing the controller's own doc comment.
  * 2. @response with a short class name (e.g. "TeamResource" via a `use`
  *    import) failed to resolve to a $ref, because resolution only tried

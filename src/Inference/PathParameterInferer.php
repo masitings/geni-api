@@ -89,11 +89,11 @@ final class PathParameterInferer
                 $diagnostics[] = new InferenceDiagnostic(
                     $file,
                     $line,
-                    sprintf('Could not resolve route-model bound column "%s" on table "%s" for model "%s" — falling back to string', $keyName, $tableName, $boundModelClass)
+                    sprintf('Could not resolve route-model bound column "%s" on table "%s" for model "%s": falling back to string', $keyName, $tableName, $boundModelClass)
                 );
             }
         } elseif ($schema !== null) {
-            // Unbound param — if paramName looks like a model name (e.g. 'post' or 'user_id'), we can try guessing table
+            // Unbound param: if paramName looks like a model name (e.g. 'post' or 'user_id'), we can try guessing table
             $tableName = $this->tableResolver->pluralize($paramName);
             $overrideKey = $tableName.'.'.$keyName;
 

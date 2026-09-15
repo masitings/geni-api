@@ -219,13 +219,13 @@ test('per-middleware security rules document different schemes for different mid
         'type' => 'http', 'scheme' => 'bearer', 'bearerFormat' => 'JWT',
     ]);
 
-    // Matched by the api-key rule — a completely different scheme type
+    // Matched by the api-key rule, a completely different scheme type
     expect($json['paths']['/api/apikey-route']['get']['security'])->toBe([['apiKeyAuth' => []]]);
     expect($json['components']['securitySchemes']['apiKeyAuth'])->toBe([
         'type' => 'apiKey', 'in' => 'header', 'name' => 'X-API-Key',
     ]);
 
-    // Not matched by any rule — falls back to the global scheme
+    // Not matched by any rule, falls back to the global scheme
     expect($json['paths']['/api/fallback-route']['get']['security'])->toBe([['bearerAuth' => []]]);
     expect($json['components']['securitySchemes'])->toHaveKey('bearerAuth');
 });

@@ -6,11 +6,11 @@
 [![PHP](https://img.shields.io/badge/php-%5E8.2-8892BF)](https://php.net)
 [![Laravel](https://img.shields.io/badge/laravel-10.x--13.x-FF2D20)](https://laravel.com)
 
-Geni is a static-analysis OpenAPI 3.1.0 documentation generator for Laravel. It reads your source files — routes, controllers, Form Requests, Resources, migrations — and produces a specification without ever booting your application or connecting to a database.
+Geni is a static-analysis OpenAPI 3.1.0 documentation generator for Laravel. It reads your source files (routes, controllers, Form Requests, Resources, migrations) and produces a specification without ever booting your application or connecting to a database.
 
 It includes a built-in standalone interactive documentation portal (`BladeRenderer`) that runs out-of-the-box with **zero JavaScript build step** (no React, no Vite, no node_modules required).
 
-If you already annotate your API for [Scramble](https://scramble.dedoc.co/), Geni understands the same PHPDoc tags and the same attribute names — switching only requires rewriting `use` statements.
+If you already annotate your API for [Scramble](https://scramble.dedoc.co/), Geni understands the same PHPDoc tags and the same attribute names; switching only requires rewriting `use` statements.
 
 > 📖 **Full Documentation**: See [DOCUMENTATION.md](DOCUMENTATION.md) for complete architecture details, configuration reference, PHP attributes, and end-to-end examples.
 
@@ -22,7 +22,7 @@ If you already annotate your API for [Scramble](https://scramble.dedoc.co/), Gen
 - **Zero application boot for inference.** Route discovery is the only runtime touchpoint; everything else is static AST analysis.
 - **Standalone docs UI out of the box.** Powered by Blade, Tailwind Play CDN, and Alpine.js with live search, Prism.js syntax highlighting, and an interactive Try It console.
 - **Form-based or HTTP Basic Auth gate.** Protect documentation routes with isolated credentials independent of application user tables.
-- **Runs anywhere your code does** — local checkouts, CI pipelines, pre-commit hooks.
+- **Runs anywhere your code does** (local checkouts, CI pipelines, pre-commit hooks).
 
 ## Installation
 

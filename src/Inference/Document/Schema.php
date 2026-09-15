@@ -7,7 +7,7 @@ namespace Geni\Inference\Document;
 use JsonSerializable;
 
 /**
- * Generic JSON Schema value object — enough for this phase's inference.
+ * Generic JSON Schema value object, enough for this phase's inference.
  * Keep properties that map directly from validation rules and resource types.
  * Extensions are passed through untouched.
  */

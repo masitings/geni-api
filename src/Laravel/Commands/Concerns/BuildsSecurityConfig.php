@@ -6,8 +6,8 @@ namespace Geni\Laravel\Commands\Concerns;
 
 /**
  * Shared securityConfig array builder for every command that assembles a
- * document. Converts config('geni.middleware_security_schemes') — an
- * associative map of middleware pattern => scheme — into the ordered
+ * document. Converts config('geni.middleware_security_schemes'), an
+ * associative map of middleware pattern => scheme, into the ordered
  * 'rules' list DocumentAssembler checks before its single global scheme,
  * so different middleware (e.g. auth:sanctum vs a custom API-key guard)
  * can document as different security schemes automatically.

@@ -243,7 +243,7 @@ final class DocumentAssembler
             }
 
             // Security derivation (FR-006, FR-007): every matching per-middleware rule is
-            // collected (AND semantics — a route behind two guards, e.g. auth:sanctum AND
+            // collected (AND semantics, a route behind two guards, e.g. auth:sanctum AND
             // a custom api-key middleware, requires both), falling back to the single
             // global scheme when no specific rule matches.
             $routeMiddleware = $routeData['middleware'] ?? [];
@@ -353,7 +353,7 @@ final class DocumentAssembler
 
                 // Security requirements (FR-006, FR-007, AC-006)
                 if ($securityEnabled && $isAuthRoute && ! $isUnauthenticated) {
-                    // No specific rule matched (only the global fallback pattern did) — apply the single global scheme.
+                    // No specific rule matched (only the global fallback pattern did), apply the single global scheme.
                     $appliedSchemes = $matchedSchemes !== [] ? $matchedSchemes : [$schemeName => $schemeDef];
 
                     // One requirement object with every applicable scheme = AND (all required together),

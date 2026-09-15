@@ -89,7 +89,7 @@ final class ValidationRuleExtractor
                 $results['diagnostics'][] = new InferenceDiagnostic(
                     $ast->file,
                     $call->args[0]->value->getLine(),
-                    'Non-literal rules array passed to validate() — rules not extracted',
+                    'Non-literal rules array passed to validate(): rules not extracted',
                 );
 
                 continue;
@@ -129,7 +129,7 @@ final class ValidationRuleExtractor
                 $results['diagnostics'][] = new InferenceDiagnostic(
                     $ast->file,
                     $rulesVal->getLine(),
-                    'Non-literal rules array passed to Validator::make() — rules not extracted'
+                    'Non-literal rules array passed to Validator::make(): rules not extracted'
                 );
 
                 continue;
@@ -326,7 +326,7 @@ final class ValidationRuleExtractor
                     $results['diagnostics'][] = new InferenceDiagnostic(
                         $file,
                         $ret->getLine(),
-                        sprintf('Non-literal return expression in FormRequest %s::rules() — rules not extracted', $className)
+                        sprintf('Non-literal return expression in FormRequest %s::rules(): rules not extracted', $className)
                     );
                 }
             }
@@ -374,7 +374,7 @@ final class ValidationRuleExtractor
                 $results['diagnostics'][] = new InferenceDiagnostic(
                     $actionAst->file,
                     $item->key->getLine(),
-                    'Non-string field key in rules array — skipped',
+                    'Non-string field key in rules array: skipped',
                 );
 
                 continue;
@@ -394,7 +394,7 @@ final class ValidationRuleExtractor
                 $results['diagnostics'][] = new InferenceDiagnostic(
                     $actionAst->file,
                     $item->value->getLine(),
-                    'Non-literal rule value for field "'.$fieldName.'" — skipped',
+                    'Non-literal rule value for field "'.$fieldName.'": skipped',
                 );
             }
         }
@@ -459,7 +459,7 @@ final class ValidationRuleExtractor
                     $diagnostics[] = new InferenceDiagnostic(
                         $actionAst->file,
                         $val->getLine(),
-                        'Rule::in() called with non-literal arguments — falling back to base type'
+                        'Rule::in() called with non-literal arguments: falling back to base type'
                     );
                 }
 
