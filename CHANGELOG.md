@@ -18,6 +18,7 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 - Mobile nav drawer and mobile "Try It" slide-over were missing several desktop-only sidebar features (API version switcher, endpoint search, promo card, footer credit, and full auth/param/body request form) — both surfaces now share the same partials as desktop so mobile has full parity.
 - Response body and response example panels now use a fixed dark background instead of one that blended into their dark-mode container.
 - Response status badges and the version switcher dropdown no longer overflow on narrow screens or with many entries.
+- DocsFormAuth middleware now returns 401 JSON (instead of an HTML redirect) for unauthenticated requests to versioned API JSON spec paths (`docs/api/{name}.json`) configured via `geni.apis`.
 
 ## [0.10.0] - 2026-09-14
 

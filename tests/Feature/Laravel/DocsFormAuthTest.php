@@ -14,6 +14,13 @@ class DocsFormAuthTest extends TestCase
         $app['config']->set('geni.docs_auth.mode', 'form');
         $app['config']->set('geni.docs_auth.username', 'admin');
         $app['config']->set('geni.docs_auth.password', 'secret');
+        $app['config']->set('geni.apis', [
+            'v1' => [
+                'title' => 'API v1',
+                'version' => '1.0.0',
+                'api_path' => 'api/v1',
+            ],
+        ]);
     }
 
     public function test_unauthenticated_guest_accessing_docs_ui_is_redirected_to_login(): void
@@ -99,6 +106,25 @@ class DocsFormAuthTest extends TestCase
         config(['geni.docs_auth.password' => null]);
 
         $response = $this->get('/docs/api');
+
         $response->assertOk();
+    }
+
+    public function test_unauthenticated_request_to_versioned_json_spec_returns_401_json(): void
+    {
+        $response = $this->get('/docs/api/v1.json');
+
+        $response->assertStatus(401);
+        $response->assertJson(['message' => 'Unauthorized.']);
+    }
+
+    public function test_authenticated_session_can_access_versioned_json_spec(): void
+    {
+        $this->withSession(['geni_docs_authenticated' => true]);
+
+        $response = $this->get('/docs/api/v1.json');
+
+        $response->assertOk();
+        $response->assertJsonPath('openapi', '3.1.0');
     }
 }

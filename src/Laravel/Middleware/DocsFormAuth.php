@@ -28,12 +28,21 @@ final class DocsFormAuth
         }
 
         $jsonPath = config('geni.docs_json_path', 'docs/api.json');
+        $uiPath = config('geni.docs_ui_path', 'docs/api');
 
-        if ($request->expectsJson() || $request->is($jsonPath) || $request->is('*/'.$jsonPath)) {
-            return response()->json(['message' => 'Unauthorized.'], 401);
+        $jsonPaths = [$jsonPath];
+
+        foreach ((array) config('geni.apis', []) as $name => $apiConfig) {
+            if (is_array($apiConfig)) {
+                $jsonPaths[] = $apiConfig['docs_json_path'] ?? ($uiPath.'/'.$name.'.json');
+            }
         }
 
-        $uiPath = config('geni.docs_ui_path', 'docs/api');
+        foreach ($jsonPaths as $path) {
+            if ($request->expectsJson() || $request->is($path) || $request->is('*/'.$path)) {
+                return response()->json(['message' => 'Unauthorized.'], 401);
+            }
+        }
 
         return redirect()->guest(url($uiPath.'/login'));
     }
