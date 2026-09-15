@@ -46,6 +46,31 @@ test('geni:check command detects matching spec and reports non-zero on drift', f
     }
 });
 
+test('geni:check treats key order as insignificant (no false drift across environments)', function () {
+    // Regression: areStructurallyEqual() used strict `===` on decoded arrays, which is
+    // order-sensitive for JSON objects. Route/reflection iteration order can differ across
+    // environments (e.g. local macOS vs CI Ubuntu) even when the document content is
+    // identical, causing spurious drift failures. A committed spec with the same content
+    // but differently-ordered object keys must still be reported as up to date.
+    $original = json_decode(
+        file_get_contents(__DIR__.'/../../Fixtures/spec/openapi.json'),
+        true
+    );
+
+    $reordered = array_reverse($original, true);
+    $reordered['paths'] = array_reverse($original['paths'], true);
+
+    $tempFile = sys_get_temp_dir().'/reordered_openapi.json';
+    file_put_contents($tempFile, json_encode($reordered, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    try {
+        $this->artisan('geni:check', ['--path' => $tempFile])
+            ->assertSuccessful();
+    } finally {
+        @unlink($tempFile);
+    }
+});
+
 test('geni:cache and geni:clear commands manage cached specification', function () {
     config(['geni.cache.enabled' => true]);
 

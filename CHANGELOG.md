@@ -4,6 +4,10 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- `geni:check` compared the generated and committed OpenAPI documents with strict `===` on decoded PHP arrays, which is order-sensitive for JSON objects. Route/reflection iteration order can differ across environments (e.g. local macOS vs CI Ubuntu) with identical document content, causing spurious drift failures. Comparison now recursively sorts object keys (canonicalizes) before comparing while preserving list-array order, which is semantically significant.
+
 ## [1.0.0] - 2026-09-15
 
 ### Added

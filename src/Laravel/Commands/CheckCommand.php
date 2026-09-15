@@ -93,7 +93,32 @@ final class CheckCommand extends Command
 
     private function areStructurallyEqual(mixed $a, mixed $b): bool
     {
-        return $a === $b;
+        return $this->canonicalize($a) === $this->canonicalize($b);
+    }
+
+    /**
+     * Recursively sort associative array (JSON object) keys so comparison is
+     * insensitive to key-emission order, which carries no semantic meaning in
+     * JSON and can otherwise differ across environments (e.g. reflection or
+     * filesystem iteration order) even when the document content is identical.
+     * List arrays (JSON arrays) are left in their original order since
+     * sequence there is semantically significant.
+     */
+    private function canonicalize(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        $isList = array_is_list($value);
+
+        $canonicalized = array_map(fn ($item) => $this->canonicalize($item), $value);
+
+        if (! $isList) {
+            ksort($canonicalized);
+        }
+
+        return $canonicalized;
     }
 
     private function printStructuralDiff(array $generated, array $committed): void
