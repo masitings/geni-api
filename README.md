@@ -14,6 +14,8 @@ If you already annotate your API for [Scramble](https://scramble.dedoc.co/), Gen
 
 > 📖 **Full Documentation**: See [DOCUMENTATION.md](DOCUMENTATION.md) for complete architecture details, configuration reference, PHP attributes, and end-to-end examples.
 
+![Geni documentation portal](.github/assets/screenshot.jpg)
+
 ## Key Highlights
 
 - **Zero database connections.** Column types are reconstructed offline from migration files.
