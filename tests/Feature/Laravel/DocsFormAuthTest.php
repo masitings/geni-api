@@ -10,6 +10,7 @@ class DocsFormAuthTest extends TestCase
     {
         parent::defineEnvironment($app);
 
+        $app['config']->set('session.driver', 'array');
         $app['config']->set('app.key', 'base64:6Cu/4u+W467S5+L467S5+L467S5+L467S5+L467S5+I=');
         $app['config']->set('geni.docs_auth.mode', 'form');
         $app['config']->set('geni.docs_auth.username', 'admin');

@@ -32,5 +32,6 @@ abstract class TestCase extends OrchestraTestCase
         $app['config']->set('geni.restrict_to_local', false);
         $app['config']->set('geni.api_path', 'api');
         $app['config']->set('geni.migration_paths', [__DIR__.'/Fixtures/App/database/migrations']);
+        $app['config']->set('cache.default', 'array');
     }
 }
