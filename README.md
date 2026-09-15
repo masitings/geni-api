@@ -1,5 +1,11 @@
 # Geni
 
+[![Latest Version](https://img.shields.io/github/v/release/masitings/geni-api?label=latest)](https://github.com/masitings/geni-api/releases)
+[![Tests](https://img.shields.io/github/actions/workflow/status/masitings/geni-api/tests.yml?branch=main&label=tests)](https://github.com/masitings/geni-api/actions/workflows/tests.yml)
+[![License](https://img.shields.io/github/license/masitings/geni-api)](LICENSE)
+[![PHP](https://img.shields.io/badge/php-%5E8.2-8892BF)](https://php.net)
+[![Laravel](https://img.shields.io/badge/laravel-10.x--13.x-FF2D20)](https://laravel.com)
+
 Geni is a static-analysis OpenAPI 3.1.0 documentation generator for Laravel. It reads your source files — routes, controllers, Form Requests, Resources, migrations — and produces a specification without ever booting your application or connecting to a database.
 
 It includes a built-in standalone interactive documentation portal (`BladeRenderer`) that runs out-of-the-box with **zero JavaScript build step** (no React, no Vite, no node_modules required).
