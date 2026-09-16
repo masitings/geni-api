@@ -4,6 +4,16 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-09-17
+
+### Documentation & Maintenance
+
+- Clarified documentation wording to emphasize standard OpenAPI docblock conventions and seamless migration from other generators.
+- Added official trademark disclaimers in README and documentation.
+- Linked full documentation references directly to [geni.masiting.dev](https://geni.masiting.dev/).
+- Removed internal test dependency `dedoc/scramble` to keep development dependencies clean and completely self-contained.
+- Expanded Model Context Protocol (MCP) documentation detailing real-world autonomous AI workflows and execution safety.
+
 ## [2.0.0] - 2026-09-16
 
 ### Added
