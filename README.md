@@ -12,7 +12,7 @@ It includes a built-in standalone interactive documentation portal (`BladeRender
 
 If you already annotate your API for [Scramble](https://scramble.dedoc.co/), Geni understands the same PHPDoc tags and the same attribute names; switching only requires rewriting `use` statements.
 
-> 📖 **Full Documentation**: See [DOCUMENTATION.md](DOCUMENTATION.md) for complete architecture details, configuration reference, PHP attributes, and end-to-end examples.
+> 📖 **Full Documentation**: See [geni.masiting.dev](https://geni.masiting.dev/) for complete architecture details, configuration reference, PHP attributes, and end-to-end examples.
 
 ![Geni documentation portal](.github/assets/screenshot.jpg)
 
@@ -172,7 +172,7 @@ Geni parses code statically rather than evaluating runtime values:
 
 ---
 
-For in-depth guides on all features, custom renderers, security schemes, and PHP attributes, please read [DOCUMENTATION.md](DOCUMENTATION.md).
+For in-depth guides on all features, custom renderers, security schemes, and PHP attributes, please read the full documentation at [geni.masiting.dev](https://geni.masiting.dev/).
 
 ## License
 
