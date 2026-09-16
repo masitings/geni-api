@@ -88,6 +88,18 @@ final class ErrorResponseInferer
             ];
         }
 
+        // 403 when action class contains an authorize() method
+        if (! isset($responses['403']) && $this->hasActionAuthorization($ast)) {
+            $responses['403'] = [
+                'description' => 'This action is unauthorized.',
+                'content' => [
+                    'application/json' => [
+                        'schema' => $this->createErrorSchema('This action is unauthorized.'),
+                    ],
+                ],
+            ];
+        }
+
         // FR-020: abort($code), abort_if($cond, $code), abort_unless($cond, $code)
         $abortCodes = $this->extractAbortStatusCodes($ast->node);
         foreach ($abortCodes as $code) {
@@ -235,5 +247,29 @@ final class ErrorResponseInferer
         $schema->extensions['required'] = ['message'];
 
         return $schema;
+    }
+
+    private function hasActionAuthorization(?ActionAst $ast): bool
+    {
+        if ($ast === null || ! ($ast->node instanceof Node\Stmt\ClassMethod)) {
+            return false;
+        }
+
+        if (! is_file($ast->file)) {
+            return false;
+        }
+
+        $detector = new LaravelActionDetector(null, $this->finder);
+        $parsed = $detector->parseFileAndExtractClass($ast->file, '');
+        $classNode = $parsed['class'];
+        if ($classNode === null) {
+            return false;
+        }
+
+        if (! $detector->isActionClass($classNode, $ast->useImports)) {
+            return false;
+        }
+
+        return $detector->hasAuthorizeMethod($classNode);
     }
 }

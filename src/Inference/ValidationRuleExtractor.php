@@ -66,6 +66,15 @@ final class ValidationRuleExtractor
             foreach ($formRequestRules['diagnostics'] as $d) {
                 $results['diagnostics'][] = $d;
             }
+
+            // 1.b. Check if action class itself is a Laravel Action defining rules()
+            $actionRules = $this->extractFromActionClassRules($ast);
+            foreach ($actionRules['fields'] as $field => $rules) {
+                $results['fields'][$field] = $rules;
+            }
+            foreach ($actionRules['diagnostics'] as $d) {
+                $results['diagnostics'][] = $d;
+            }
         }
 
         // 2. Find validate() calls on $request or $this (FR-001/Phase 3)
@@ -336,6 +345,86 @@ final class ValidationRuleExtractor
                 1,
                 sprintf('Failed to parse FormRequest %s: %s', $className, $e->getMessage())
             );
+        }
+
+        return $results;
+    }
+
+    /**
+     * Extract validation rules from a Laravel Action class defining rules().
+     *
+     * @return array{fields: array<string, string|list<string>>, diagnostics: list<InferenceDiagnostic>}
+     */
+    private function extractFromActionClassRules(ActionAst $ast): array
+    {
+        $results = ['fields' => [], 'diagnostics' => []];
+
+        if (! ($ast->node instanceof ClassMethod)) {
+            return $results;
+        }
+
+        $file = $ast->file;
+        if (! is_file($file)) {
+            return $results;
+        }
+
+        $detector = new LaravelActionDetector($this->parser, $this->nodeFinder);
+        $parsed = $detector->parseFileAndExtractClass($file, '');
+        $classNode = $parsed['class'];
+        if ($classNode === null) {
+            return $results;
+        }
+
+        $isAction = $detector->isActionClass($classNode, $ast->useImports);
+        $hasActionRequestParam = false;
+
+        foreach ($ast->node->params as $param) {
+            if ($param->type instanceof Name) {
+                $typeStr = $param->type->toString();
+                if (str_ends_with($typeStr, 'ActionRequest')) {
+                    $hasActionRequestParam = true;
+                    break;
+                }
+            }
+        }
+
+        if (! $isAction && ! $hasActionRequestParam) {
+            return $results;
+        }
+
+        if (! $detector->hasRulesMethod($classNode)) {
+            return $results;
+        }
+
+        $rulesMethod = null;
+        foreach ($classNode->stmts as $stmt) {
+            if ($stmt instanceof ClassMethod && $stmt->name->toString() === 'rules' && $stmt->isPublic()) {
+                $rulesMethod = $stmt;
+                break;
+            }
+        }
+
+        if ($rulesMethod === null || $rulesMethod->stmts === null) {
+            return $results;
+        }
+
+        $returns = $this->nodeFinder->findInstanceOf($rulesMethod->stmts, Return_::class);
+        foreach ($returns as $ret) {
+            if ($ret->expr instanceof Array_) {
+                $extracted = $this->extractFieldsFromLiteralArray($ret->expr, $ast);
+                foreach ($extracted['fields'] as $f => $r) {
+                    $results['fields'][$f] = $r;
+                }
+                foreach ($extracted['diagnostics'] as $d) {
+                    $results['diagnostics'][] = $d;
+                }
+            } else {
+                $results['diagnostics'][] = new InferenceDiagnostic(
+                    $file,
+                    $ret->getLine(),
+                    'Non-literal return expression in Action rules(): rules not extracted'
+                );
+            }
         }
 
         return $results;
