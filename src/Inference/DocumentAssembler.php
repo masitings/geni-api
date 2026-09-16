@@ -12,6 +12,7 @@ use Geni\Inference\Document\Parameter;
 use Geni\Inference\Document\PathItem;
 use Geni\Inference\Document\RequestBody;
 use Geni\Inference\Document\Schema;
+use Geni\Inference\QueryBuilder\QueryBuilderExtractor;
 use Geni\SchemaReader\DatabaseSchema;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\ClassMethod;
@@ -44,6 +45,8 @@ final class DocumentAssembler
 
     private ResponseTypeResolver $responseResolver;
 
+    private QueryBuilderExtractor $queryBuilderExtractor;
+
     /** @var list<array{file: string, line: int, reason: string, operation: string}> */
     public array $recordedDiagnostics = [];
 
@@ -58,6 +61,7 @@ final class DocumentAssembler
         ?AttributeAnnotationReader $attrReader = null,
         ?AnnotationMerger $annotationMerger = null,
         ?ResponseTypeResolver $responseResolver = null,
+        ?QueryBuilderExtractor $queryBuilderExtractor = null,
     ) {
         $this->astAcquirer = $astAcquirer ?? new ActionAstAcquirer;
         $this->pathInferer = $pathInferer ?? new PathParameterInferer;
@@ -69,6 +73,7 @@ final class DocumentAssembler
         $this->attrReader = $attrReader ?? new AttributeAnnotationReader;
         $this->annotationMerger = $annotationMerger ?? new AnnotationMerger;
         $this->responseResolver = $responseResolver ?? new ResponseTypeResolver;
+        $this->queryBuilderExtractor = $queryBuilderExtractor ?? new QueryBuilderExtractor;
     }
 
     /**
@@ -309,6 +314,19 @@ final class DocumentAssembler
                     }
                 }
 
+                // Add query parameters from Spatie QueryBuilder::for(...) for GET requests
+                $qbDiagnostics = [];
+                if ($httpMethod === 'GET' && $actionAst !== null) {
+                    $qbInfo = $this->queryBuilderExtractor->extractFromActionAst($actionAst, $dbSchema);
+                    foreach ($qbInfo['parameters'] as $qbParam) {
+                        if (in_array($qbParam->name, $ignoredParamNames, true)) {
+                            continue;
+                        }
+                        $operation->parameters[] = $qbParam;
+                    }
+                    $qbDiagnostics = $qbInfo['diagnostics'];
+                }
+
                 // Add / merge Group 2 parameter attributes (QueryParameter, HeaderParameter, CookieParameter)
                 $operation->parameters = $this->mergeNonPathParameterAttributes($operation->parameters, $attrMethod['parameters'] ?? [], $httpMethod);
 
@@ -393,7 +411,8 @@ final class DocumentAssembler
                 $allDiagnostics = array_merge(
                     $pathParams['diagnostics'],
                     $requestBodyInfo['diagnostics'],
-                    $responseInfo['diagnostics']
+                    $responseInfo['diagnostics'],
+                    $qbDiagnostics
                 );
 
                 if ($allDiagnostics !== []) {

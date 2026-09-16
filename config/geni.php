@@ -273,6 +273,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Spatie Laravel Query Builder Support
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, Geni automatically extracts query parameters from
+    | QueryBuilder::for(...) method chains (allowedFilters, allowedSorts,
+    | allowedIncludes, allowedFields, allowedAppends) for GET operations.
+    |
+    */
+
+    'query_builder' => [
+        'enabled' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Model Context Protocol (MCP) Tool Manifest & Real Execution
     |--------------------------------------------------------------------------
     |

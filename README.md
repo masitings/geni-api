@@ -144,6 +144,15 @@ Geni provides first-class, opt-in support for [Laravel Actions](https://laravela
 - **Authorization**: When an action defines an `authorize()` method with non-trivial logic, a 403 Forbidden response is automatically documented.
 - **Summary derivation**: Operation summaries are cleanly derived from action class names (e.g. `CreateUserAction` -> "Create user") when no explicit summary annotation is provided.
 
+## Spatie Laravel Query Builder Support
+
+Geni statically inspects [Spatie Laravel Query Builder](https://spatie.be/docs/laravel-query-builder) (`spatie/laravel-query-builder`) calls on GET operations:
+- **`allowedFilters(...)`**: Generates `filter[field]` query parameters with database column types automatically resolved from your migrations. Supports `AllowedFilter::exact`, `partial`, `scope`, and `trashed`.
+- **`allowedSorts(...)` and `defaultSort(...)`**: Generates a unified `sort` query parameter with expanded ascending and descending enums and default values.
+- **`allowedIncludes(...)`**: Generates an `include` query parameter listing available relation names.
+- **`allowedFields(...)`**: Generates `fields[resource]` query parameters for sparse fieldsets.
+- **`allowedAppends(...)`**: Generates an `append` query parameter listing dynamic model accessors.
+
 ## Divergences from Scramble
 
 Geni parses code statically rather than evaluating runtime values:

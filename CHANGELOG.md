@@ -6,6 +6,12 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ### Added
 
+- Support for Spatie Laravel Query Builder (`spatie/laravel-query-builder`):
+  - Statically analyzes `QueryBuilder::for(...)` method chains on GET operations to generate OpenAPI query parameters without booting the application.
+  - Generates `filter[field]` query parameters with database column types automatically resolved from migration schemas; supports `AllowedFilter::exact`, `partial`, `scope`, `beginsWithStrict`, `endsWithStrict`, and `trashed` (with enum `['with', 'only']`).
+  - Generates a unified `sort` parameter with expanded ascending and descending enums and default sort values from `allowedSorts` and `defaultSort`.
+  - Generates `include` parameter for `allowedIncludes`, `fields[resource]` parameters for `allowedFields`, and `append` parameter for `allowedAppends`.
+  - Emits non-fatal `InferenceDiagnostic` entries for dynamic or non-literal arguments while gracefully parsing remaining parameters.
 - Support for Laravel Actions (`lorisleiva/laravel-actions`):
   - Automatic detection and routing resolution for single-action route definitions (`Route::get('/path', SomeAction::class)`), prioritizing `asController()` over `handle()`.
   - Static validation rules extraction from Action `rules()` method and `ActionRequest` parameters into the OpenAPI request body schema.
