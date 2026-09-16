@@ -62,7 +62,13 @@ No annotations required: for endpoints using route-model binding, validated requ
 
 ## Model Context Protocol (MCP) Integration
 
-Geni natively exports and executes your Laravel API as Model Context Protocol (MCP) tools, enabling AI agents (Claude Code, Cursor, Windsurf, Claude Desktop) to discover and invoke your endpoints directly.
+Geni natively exports and executes your Laravel API as Model Context Protocol (MCP) tools, turning your application into an AI-ready toolkit. AI agents (Claude Code, Cursor, Windsurf, Claude Desktop) can discover, understand, and execute your endpoints directly without manual wrapper code or extra setup.
+
+### What AI Agents Can Do With Your API
+
+- **Autonomous Endpoint Discovery (`tools/list`)**: AI assistants automatically read all your routes, complete with request body parameters, validation constraints (required, email, min, max, enum), and response models inferred from your source code.
+- **Direct Action Execution (`tools/call`)**: An AI agent can perform real tasks via your API. For example, ask your agent: *"Find the user with email alex@example.com and set their role to editor"*, and the agent will call `GET /api/users` and `PATCH /api/users/{id}` autonomously!
+- **Safe Credential Injection**: Configure your Bearer token or API key in your environment. Credentials are automatically attached during execution and never exposed to the LLM context or tool schemas.
 
 ### 1. Live Stdio Execution (`php artisan geni:mcp:serve`)
 
