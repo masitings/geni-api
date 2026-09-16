@@ -10,7 +10,7 @@ Geni is a static-analysis OpenAPI 3.1.0 documentation generator for Laravel. It 
 
 It includes a built-in standalone interactive documentation portal (`BladeRenderer`) that runs out-of-the-box with **zero JavaScript build step** (no React, no Vite, no node_modules required).
 
-If you already annotate your API for [Scramble](https://scramble.dedoc.co/), Geni understands the same PHPDoc tags and the same attribute names; switching only requires rewriting `use` statements.
+Geni supports standard OpenAPI docblock conventions and PHP 8 attributes. If you are migrating from existing documentation tools like Scramble, Geni understands familiar PHPDoc tags and attribute conventions, making switching straightforward.
 
 > 📖 **Full Documentation**: See [geni.masiting.dev](https://geni.masiting.dev/) for complete architecture details, configuration reference, PHP attributes, and end-to-end examples.
 
@@ -168,7 +168,7 @@ Geni statically inspects [Spatie Laravel Query Builder](https://spatie.be/docs/l
 - **`allowedFields(...)`**: Generates `fields[resource]` query parameters for sparse fieldsets.
 - **`allowedAppends(...)`**: Generates an `append` query parameter listing dynamic model accessors.
 
-## Divergences from Scramble
+## Design Decisions & Static Analysis Nuances
 
 Geni parses code statically rather than evaluating runtime values:
 
@@ -179,6 +179,10 @@ Geni parses code statically rather than evaluating runtime values:
 ---
 
 For in-depth guides on all features, custom renderers, security schemes, and PHP attributes, please read the full documentation at [geni.masiting.dev](https://geni.masiting.dev/).
+
+## Disclaimer
+
+Scramble is a trademark of dedoc.co and Roman Lytvynenko. Geni is an independent open-source project and is not affiliated with, endorsed by, or sponsored by dedoc.co.
 
 ## License
 
