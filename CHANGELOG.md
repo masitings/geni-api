@@ -4,6 +4,8 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-09-16
+
 ### Added
 
 - Support for Spatie Laravel Query Builder (`spatie/laravel-query-builder`):
