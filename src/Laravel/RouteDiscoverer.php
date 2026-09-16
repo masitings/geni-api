@@ -108,6 +108,14 @@ final class RouteDiscoverer
         if (is_string($uses) && str_contains($uses, '@')) {
             [$class, $method] = explode('@', $uses, 2);
 
+            if ($method === '__invoke') {
+                $detector = new LaravelActionDetector;
+                $actionInfo = $detector->detectForClass($class);
+                if ($actionInfo !== null && $actionInfo['isAction'] && $actionInfo['method'] !== null) {
+                    $method = $actionInfo['method'];
+                }
+            }
+
             return ['type' => 'controller', 'class' => $class, 'method' => $method];
         }
 
