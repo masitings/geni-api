@@ -31,11 +31,13 @@
         "pestphp/pest": "^3.0",
         "pestphp/pest-plugin-arch": "^3.0",
         "pestphp/pest-plugin-laravel": "^3.0",
-        "spatie/laravel-data": "^4.0"
+        "spatie/laravel-data": "^4.0",
+        "spatie/laravel-query-builder": "^5.0|^6.0"
     },
     "suggest": {
         "lorisleiva/laravel-actions": "Enables automatic OpenAPI documentation for routes defined as Laravel Actions (^2.0|^3.0).",
-        "spatie/laravel-data": "Required to automatically infer OpenAPI schemas from Data DTOs (^3.0|^4.0)."
+        "spatie/laravel-data": "Required to automatically infer OpenAPI schemas from Data DTOs (^3.0|^4.0).",
+        "spatie/laravel-query-builder": "Enables automatic OpenAPI query parameter documentation from Spatie QueryBuilder calls (^5.0|^6.0)."
     },
     "autoload": {
         "psr-4": {

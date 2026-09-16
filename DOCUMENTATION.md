@@ -215,6 +215,14 @@ Geni provides built-in, zero-configuration support for action classes using the 
 - **Authorization**: When an action defines an `authorize()` method with non-trivial logic, a `403 Forbidden` response is automatically documented.
 - **Operation Summary**: Action class names are converted from PascalCase to sentence case (e.g. `CreateUserAction` -> "Create user") when no explicit `@summary` or `#[Endpoint]` title is present.
 
+### 6. Spatie Laravel Query Builder (`spatie/laravel-query-builder`)
+Geni automatically detects `QueryBuilder::for(...)` chains on GET operations without requiring runtime execution:
+- **Filters (`allowedFilters`)**: Extracts `filter[field]` parameters. Column types are mapped to schema types (`integer`, `boolean`, `number`, `string`) using migration history. Supports `AllowedFilter::exact`, `partial`, `scope`, `beginsWithStrict`, `endsWithStrict`, and `trashed` (with enum `['with', 'only']`).
+- **Sorts (`allowedSorts`, `defaultSort`)**: Merges sort fields into a single `sort` parameter with expanded ascending and descending options, setting default values where declared.
+- **Includes (`allowedIncludes`)**: Generates an `include` query parameter listing available relation names.
+- **Sparse Fieldsets (`allowedFields`)**: Generates `fields[resource]` query parameters grouped by model or relationship prefix.
+- **Appends (`allowedAppends`)**: Generates an `append` query parameter listing allowed model accessors.
+
 ---
 
 ## 6. PHP Attributes (`Geni\Laravel\Attributes\*`)
