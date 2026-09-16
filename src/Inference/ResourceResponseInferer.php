@@ -124,9 +124,35 @@ final class ResourceResponseInferer
             return $this->inferFromResponseJsonCall($value, $actionAst);
         }
 
-        // 2. Resource::collection(...) or SomeCollection::make(...) (FR-011)
-        if ($value instanceof StaticCall && $value->name instanceof Identifier && $value->name->toString() === 'collection') {
-            return $this->inferFromResourceCollectionCall($value, $actionAst, $schema, $modelTableOverrides, $components);
+        // 2. Resource::collection(...) or SomeCollection::make(...) or DataClass::collect(...)
+        if ($value instanceof StaticCall && $value->name instanceof Identifier) {
+            $methodName = $value->name->toString();
+            if ($methodName === 'collection') {
+                return $this->inferFromResourceCollectionCall($value, $actionAst, $schema, $modelTableOverrides, $components);
+            }
+            if ($methodName === 'collect' && $value->class instanceof Name) {
+                $dataFqcn = $this->resolveNameToString($value->class, $actionAst);
+                if ($dataFqcn !== null) {
+                    $detector = new LaravelDataDetector($this->parser, $this->finder);
+                    if ($detector->isDataClass($dataFqcn)) {
+                        $dataRes = $detector->inferSchemaFromDataClass($dataFqcn, $schema, $components);
+                        $arraySchema = new Schema;
+                        $arraySchema->type = 'array';
+                        $arraySchema->items = $dataRes['schema'];
+
+                        return ['schema' => $arraySchema, 'diagnostics' => $dataRes['diagnostics']];
+                    }
+                }
+            }
+            if ($methodName === 'from' && $value->class instanceof Name) {
+                $dataFqcn = $this->resolveNameToString($value->class, $actionAst);
+                if ($dataFqcn !== null) {
+                    $detector = new LaravelDataDetector($this->parser, $this->finder);
+                    if ($detector->isDataClass($dataFqcn)) {
+                        return $detector->inferSchemaFromDataClass($dataFqcn, $schema, $components);
+                    }
+                }
+            }
         }
 
         // 3. new SomeResource($model) OR SomeResource::make($model) (Phase 3 + FR-011)
@@ -138,6 +164,12 @@ final class ResourceResponseInferer
         }
 
         if ($resourceFqcn !== null) {
+            // Check if it's a Spatie Data class
+            $detector = new LaravelDataDetector($this->parser, $this->finder);
+            if ($detector->isDataClass($resourceFqcn)) {
+                return $detector->inferSchemaFromDataClass($resourceFqcn, $schema, $components);
+            }
+
             // Check if it's a JsonResource
             if ($this->resourceExtendsJsonResource($resourceFqcn)) {
                 return $this->inferSingleResourceResponse($resourceFqcn, $actionAst, $schema, $modelTableOverrides, $components);
@@ -567,6 +599,11 @@ final class ResourceResponseInferer
         array $modelTableOverrides,
         ?Components $components
     ): array {
+        $detector = new LaravelDataDetector($this->parser, $this->finder);
+        if ($detector->isDataClass($typeFqcn)) {
+            return $detector->inferSchemaFromDataClass($typeFqcn, $schema, $components);
+        }
+
         if ($this->resourceExtendsJsonResource($typeFqcn)) {
             return $this->inferSingleResourceResponse($typeFqcn, $actionAst, $schema, $modelTableOverrides, $components);
         }

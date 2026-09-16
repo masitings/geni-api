@@ -37,6 +37,8 @@ final class Schema implements JsonSerializable
 
     public ?int $maximum = null;
 
+    public ?string $pattern = null;
+
     public bool $exclusiveMinimum = false;
 
     public bool $exclusiveMaximum = false;
@@ -46,6 +48,9 @@ final class Schema implements JsonSerializable
 
     /** @var array<string, Schema|array<string, mixed>>|null */
     public $properties = null;
+
+    /** @var list<string>|null */
+    public $required = null;
 
     /** @var array<string, mixed> */
     public array $extensions = [];
@@ -104,6 +109,10 @@ final class Schema implements JsonSerializable
             $result['maximum'] = $this->maximum;
         }
 
+        if ($this->pattern !== null) {
+            $result['pattern'] = $this->pattern;
+        }
+
         if ($this->exclusiveMinimum) {
             $result['exclusiveMinimum'] = true;
         }
@@ -123,6 +132,10 @@ final class Schema implements JsonSerializable
                     ? $prop->jsonSerialize()
                     : $prop;
             }
+        }
+
+        if ($this->required !== null && $this->required !== []) {
+            $result['required'] = $this->required;
         }
 
         if ($this->extensions !== []) {

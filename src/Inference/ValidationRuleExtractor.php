@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Geni\Inference;
 
+use Geni\Inference\Document\Schema;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\Array_;
@@ -54,6 +55,7 @@ final class ValidationRuleExtractor
         $results = [
             'fields' => [],
             'accessors' => [],
+            'schemas' => [],
             'diagnostics' => [],
         ];
 
@@ -73,6 +75,18 @@ final class ValidationRuleExtractor
                 $results['fields'][$field] = $rules;
             }
             foreach ($actionRules['diagnostics'] as $d) {
+                $results['diagnostics'][] = $d;
+            }
+
+            // 1.c. Check for Spatie Laravel Data parameters in ClassMethod signature
+            $dataRules = $this->extractFromDataClassParams($ast);
+            foreach ($dataRules['fields'] as $field => $rules) {
+                $results['fields'][$field] = $rules;
+            }
+            foreach ($dataRules['schemas'] as $field => $schema) {
+                $results['schemas'][$field] = $schema;
+            }
+            foreach ($dataRules['diagnostics'] as $d) {
                 $results['diagnostics'][] = $d;
             }
         }
@@ -622,6 +636,84 @@ final class ValidationRuleExtractor
         }
 
         return implode('\\', $parts);
+    }
+
+    /**
+     * Inspect ClassMethod parameters for classes extending Spatie\LaravelData\Data.
+     *
+     * @return array{fields: array<string, string|list<string>>, schemas: array<string, Schema>, diagnostics: list<InferenceDiagnostic>}
+     */
+    private function extractFromDataClassParams(ActionAst $ast): array
+    {
+        $results = ['fields' => [], 'schemas' => [], 'diagnostics' => []];
+
+        /** @var ClassMethod $method */
+        $method = $ast->node;
+        $detector = new LaravelDataDetector($this->parser, $this->nodeFinder);
+
+        foreach ($method->params as $param) {
+            if ($param->type instanceof Name) {
+                $paramClass = $this->resolveFqcn($param->type, $ast);
+                if ($detector->isDataClass($paramClass)) {
+                    $inferred = $detector->inferSchemaFromDataClass($paramClass);
+                    foreach ($inferred['diagnostics'] as $d) {
+                        $results['diagnostics'][] = $d;
+                    }
+
+                    if ($inferred['schema']->properties !== null) {
+                        $requiredFields = $inferred['schema']->required ?? [];
+                        foreach ($inferred['schema']->properties as $propName => $propSchema) {
+                            if ($propSchema instanceof Schema && ($propSchema->ref !== null || $propSchema->properties !== null)) {
+                                $results['schemas'][$propName] = $propSchema;
+                            }
+
+                            $rules = [];
+                            if (in_array($propName, $requiredFields, true)) {
+                                $rules[] = 'required';
+                            } else {
+                                $rules[] = 'nullable';
+                            }
+
+                            if ($propSchema instanceof Schema) {
+                                if ($propSchema->type === 'integer') {
+                                    $rules[] = 'integer';
+                                } elseif ($propSchema->type === 'number') {
+                                    $rules[] = 'numeric';
+                                } elseif ($propSchema->type === 'boolean') {
+                                    $rules[] = 'boolean';
+                                } elseif ($propSchema->type === 'array') {
+                                    $rules[] = 'array';
+                                } else {
+                                    $rules[] = 'string';
+                                }
+
+                                if ($propSchema->format === 'email') {
+                                    $rules[] = 'email';
+                                } elseif ($propSchema->format === 'uri') {
+                                    $rules[] = 'url';
+                                } elseif ($propSchema->format === 'uuid') {
+                                    $rules[] = 'uuid';
+                                }
+
+                                if ($propSchema->minimum !== null) {
+                                    $rules[] = 'min:'.$propSchema->minimum;
+                                }
+                                if ($propSchema->maximum !== null) {
+                                    $rules[] = 'max:'.$propSchema->maximum;
+                                }
+                                if ($propSchema->pattern !== null) {
+                                    $rules[] = 'regex:/'.$propSchema->pattern.'/';
+                                }
+                            }
+
+                            $results['fields'][$propName] = $rules;
+                        }
+                    }
+                }
+            }
+        }
+
+        return $results;
     }
 
     private function resolveClassFile(string $className): ?string

@@ -734,6 +734,14 @@ final class DocumentAssembler
             $dbSchema
         );
 
+        if (! empty($extracted['schemas']) && $mapped['schema']->properties !== null) {
+            foreach ($extracted['schemas'] as $propName => $propSchema) {
+                if ($propSchema instanceof Schema) {
+                    $mapped['schema']->properties[$propName] = $propSchema;
+                }
+            }
+        }
+
         // Filter out ignored / hidden properties from schema if any leaked through
         if ($ignoredParamNames !== [] && $mapped['schema']->properties !== null) {
             foreach ($ignoredParamNames as $igName) {
