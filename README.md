@@ -136,6 +136,14 @@ When multiple versions are defined:
 - An interactive version switcher dropdown automatically appears in the sidebar header of the documentation portal.
 - Single-API setups (empty `apis => []`) retain standard zero-overhead behavior without dropdowns.
 
+## Laravel Actions Support
+
+Geni provides first-class, opt-in support for [Laravel Actions](https://laravelactions.com) (`lorisleiva/laravel-actions`):
+- **Single-action routes**: Routes registered as `Route::get('/users', CreateUserAction::class)` are automatically detected. Geni resolves `asController()` (preferred) or `handle()` as the execution method.
+- **Rules extraction**: When an action defines a `rules()` method (or uses `ActionRequest`), request validation rules are statically inferred into the OpenAPI request body schema.
+- **Authorization**: When an action defines an `authorize()` method with non-trivial logic, a 403 Forbidden response is automatically documented.
+- **Summary derivation**: Operation summaries are cleanly derived from action class names (e.g. `CreateUserAction` -> "Create user") when no explicit summary annotation is provided.
+
 ## Divergences from Scramble
 
 Geni parses code statically rather than evaluating runtime values:

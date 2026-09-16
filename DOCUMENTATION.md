@@ -196,10 +196,17 @@ Mapped validation rules:
 
 ### 4. Automatic Error Responses
 - `422 Unprocessable Content`: Added when validation rules are detected.
-- `403 Forbidden`: Added when `$this->authorize()` or `Gate::` calls are found.
+- `403 Forbidden`: Added when `$this->authorize()`, `Gate::` calls, or an Action `authorize()` method are found.
 - `404 Not Found`: Added when route-model binding is present.
 - `abort($code)` / `abort_if($cond, $code)`: Documented with the literal status code.
 - `@throws Exception`: Mapped via exception status mappings (e.g. `ValidationException` → 422).
+
+### 5. Laravel Actions (`lorisleiva/laravel-actions`)
+Geni provides built-in, zero-configuration support for action classes using the Laravel Actions pattern:
+- **Routing**: Single-action routes registered as `Route::get('/users', CreateUserAction::class)` resolve to `asController()` (preferred) or `handle()`.
+- **Validation**: Rules defined in an action's `rules()` method or passed via `ActionRequest` are extracted and documented in the request body schema.
+- **Authorization**: When an action defines an `authorize()` method with non-trivial logic, a `403 Forbidden` response is automatically documented.
+- **Operation Summary**: Action class names are converted from PascalCase to sentence case (e.g. `CreateUserAction` -> "Create user") when no explicit `@summary` or `#[Endpoint]` title is present.
 
 ---
 

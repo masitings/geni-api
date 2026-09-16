@@ -267,7 +267,8 @@ final class DocumentAssembler
                 }
 
                 // Summary / title / description / operationId (FR-005)
-                $summary = $attrMethod['endpoint']['title'] ?? $routeData['name'] ?? $normalizedUri;
+                $actionSummary = $this->deriveActionSummary($actionAst, $actionData);
+                $summary = $attrMethod['endpoint']['title'] ?? $actionSummary ?? $routeData['name'] ?? $normalizedUri;
                 $description = $attrMethod['endpoint']['description'] ?? $docMethod['description'] ?? null;
                 $operationId = $attrMethod['endpoint']['operationId'] ?? $docMethod['operationId'] ?? null;
 
@@ -753,6 +754,54 @@ final class DocumentAssembler
             'accessors' => $extracted['accessors'] ?? [],
             'diagnostics' => array_merge($extracted['diagnostics'], $mapped['diagnostics']),
         ];
+    }
+
+    /**
+     * Derive a human-readable operation summary from an Action class name.
+     *
+     * @param  array<string, mixed>  $actionData
+     */
+    private function deriveActionSummary(?ActionAst $actionAst, array $actionData): ?string
+    {
+        $className = $actionData['class'] ?? null;
+        if (! is_string($className) || $className === '') {
+            return null;
+        }
+
+        if ($actionAst !== null && $actionAst->node instanceof ClassMethod) {
+            $detector = new LaravelActionDetector;
+            $parsed = $detector->parseFileAndExtractClass($actionAst->file, $className);
+            $classNode = $parsed['class'];
+            if ($classNode === null || ! $detector->isActionClass($classNode, $actionAst->useImports)) {
+                return null;
+            }
+        } else {
+            return null;
+        }
+
+        $shortClass = substr(strrchr('\\'.$className, '\\') ?: $className, 1);
+
+        if (str_ends_with($shortClass, 'Action')) {
+            $baseName = substr($shortClass, 0, -6);
+        } elseif (str_ends_with($shortClass, 'Controller')) {
+            $baseName = substr($shortClass, 0, -10);
+        } else {
+            $baseName = $shortClass;
+        }
+
+        if ($baseName === '') {
+            return null;
+        }
+
+        $words = preg_split('/(?=[A-Z])/', $baseName, -1, PREG_SPLIT_NO_EMPTY);
+        if ($words === false || empty($words)) {
+            return null;
+        }
+
+        $first = array_shift($words);
+        $rest = array_map('strtolower', $words);
+
+        return $first.(count($rest) > 0 ? ' '.implode(' ', $rest) : '');
     }
 
     /**

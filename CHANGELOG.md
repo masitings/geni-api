@@ -4,6 +4,14 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Support for Laravel Actions (`lorisleiva/laravel-actions`):
+  - Automatic detection and routing resolution for single-action route definitions (`Route::get('/path', SomeAction::class)`), prioritizing `asController()` over `handle()`.
+  - Static validation rules extraction from Action `rules()` method and `ActionRequest` parameters into the OpenAPI request body schema.
+  - Automatic `403 Forbidden` response documentation when an Action defines a non-trivial `authorize()` method.
+  - Human-readable operation summary derivation from Action class names (e.g. `CreateUserAction` -> "Create user") when no explicit summary annotation is present.
+
 ### Changed (BREAKING)
 
 - **Permanent sidebar promo banner**: The sidebar promo card is no longer configurable and cannot be disabled or customized. It is now a permanent advertisement banner linking to `masitings/geni-api` rendered unconditionally in every documentation portal instance. The `config('geni.promo')` configuration block has been removed from `config/geni.php`. Any host applications specifying `config('geni.promo.*')` will have those settings silently ignored. This breaking change requires a major version bump.

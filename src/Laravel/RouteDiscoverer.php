@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Geni\Laravel;
 
+use Geni\Inference\LaravelActionDetector;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -107,6 +108,14 @@ final class RouteDiscoverer
         if (is_string($uses) && str_contains($uses, '@')) {
             [$class, $method] = explode('@', $uses, 2);
 
+            if ($method === '__invoke') {
+                $detector = new LaravelActionDetector;
+                $actionInfo = $detector->detectForClass($class);
+                if ($actionInfo !== null && $actionInfo['isAction'] && $actionInfo['method'] !== null) {
+                    $method = $actionInfo['method'];
+                }
+            }
+
             return ['type' => 'controller', 'class' => $class, 'method' => $method];
         }
 
@@ -114,7 +123,27 @@ final class RouteDiscoverer
             // [Controller::class], single-action controller
             [$class] = explode('::class', $uses, 2);
 
-            return ['type' => 'controller', 'class' => $class, 'method' => '__invoke'];
+            $detector = new LaravelActionDetector;
+            $actionInfo = $detector->detectForClass($class);
+            $method = ($actionInfo !== null && $actionInfo['isAction'] && $actionInfo['method'] !== null)
+                ? $actionInfo['method']
+                : '__invoke';
+
+            return ['type' => 'controller', 'class' => $class, 'method' => $method];
+        }
+
+        if (is_string($uses) && ! empty($uses)) {
+            $detector = new LaravelActionDetector;
+            $actionInfo = $detector->detectForClass($uses);
+            if ($actionInfo !== null && $actionInfo['isAction']) {
+                $method = $actionInfo['method'] ?? 'asController';
+
+                return ['type' => 'controller', 'class' => $uses, 'method' => $method];
+            }
+
+            if (class_exists($uses) || method_exists($uses, '__invoke')) {
+                return ['type' => 'controller', 'class' => $uses, 'method' => '__invoke'];
+            }
         }
 
         if (isset($action['file'])) {
