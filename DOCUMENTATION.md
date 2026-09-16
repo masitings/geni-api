@@ -201,7 +201,14 @@ Mapped validation rules:
 - `abort($code)` / `abort_if($cond, $code)`: Documented with the literal status code.
 - `@throws Exception`: Mapped via exception status mappings (e.g. `ValidationException` → 422).
 
-### 5. Laravel Actions (`lorisleiva/laravel-actions`)
+### 5. Spatie Laravel Data (`spatie/laravel-data`)
+Geni provides built-in, zero-configuration support for DTO classes extending `Spatie\LaravelData\Data`:
+- **Request Payloads**: Controller action parameters type-hinting a `Data` class generate an `application/json` request body matching constructor-promoted and public properties.
+- **Responses**: Actions returning `DataClass::from(...)`, `DataClass::collect(...)`, `new DataClass(...)`, or declaring a `DataClass` return type hint generate matching 200/201 schemas.
+- **Validation Attributes**: Spatie validation attributes (`#[Required]`, `#[Min]`, `#[Max]`, `#[Email]`, `#[Url]`, `#[Regex]`) are mapped to OpenAPI constraints.
+- **Optional & Nullable Fields**: Properties typed with `Optional` or nullable unions are omitted from the schema's `required` list.
+
+### 6. Laravel Actions (`lorisleiva/laravel-actions`)
 Geni provides built-in, zero-configuration support for action classes using the Laravel Actions pattern:
 - **Routing**: Single-action routes registered as `Route::get('/users', CreateUserAction::class)` resolve to `asController()` (preferred) or `handle()`.
 - **Validation**: Rules defined in an action's `rules()` method or passed via `ActionRequest` are extracted and documented in the request body schema.

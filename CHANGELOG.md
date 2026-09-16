@@ -6,6 +6,13 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ### Added
 
+- Support for Spatie Laravel Data (`spatie/laravel-data`):
+  - Statically infers request body schemas from controller action parameters type-hinting classes extending `Spatie\LaravelData\Data`.
+  - Statically infers response schemas from return expressions returning `DataClass::from(...)`, `DataClass::collect(...)`, `new DataClass(...)`, or declaring a `DataClass` return type-hint.
+  - Recursively resolves nested Data classes and collection types with proper component schema referencing (`$ref`).
+  - Statically maps Spatie validation attributes (`#[Required]`, `#[Min]`, `#[Max]`, `#[Email]`, `#[Url]`, `#[Regex]`, etc.) to JSON Schema constraints.
+  - Supports `Optional` and nullable properties by omitting them from the `required` schema array.
+
 - Support for Laravel Actions (`lorisleiva/laravel-actions`):
   - Automatic detection and routing resolution for single-action route definitions (`Route::get('/path', SomeAction::class)`), prioritizing `asController()` over `handle()`.
   - Static validation rules extraction from Action `rules()` method and `ActionRequest` parameters into the OpenAPI request body schema.

@@ -136,6 +136,15 @@ When multiple versions are defined:
 - An interactive version switcher dropdown automatically appears in the sidebar header of the documentation portal.
 - Single-API setups (empty `apis => []`) retain standard zero-overhead behavior without dropdowns.
 
+## Spatie Laravel Data Support
+
+Geni provides first-class, opt-in support for [Spatie Laravel Data](https://spatie.be/docs/laravel-data) (`spatie/laravel-data`):
+- **Request parameters**: Controller action parameters type-hinting a class extending `Spatie\LaravelData\Data` automatically generate the OpenAPI request body schema.
+- **Responses**: Controller return statements returning `new DataClass(...)`, `DataClass::from(...)`, `DataClass::collect(...)`, or declaring a `DataClass` return type hint generate accurate OpenAPI response schemas.
+- **Validation attributes**: Spatie validation attributes (`#[Required]`, `#[Min]`, `#[Max]`, `#[Email]`, `#[Url]`, `#[Regex]`) are statically mapped to JSON Schema constraints.
+- **Nested Data & Collections**: Nested Data classes and `DataCollection` returns are recursively resolved and referenced.
+- **Zero runtime overhead**: Fully static AST analysis. The package never requires `spatie/laravel-data` at runtime.
+
 ## Laravel Actions Support
 
 Geni provides first-class, opt-in support for [Laravel Actions](https://laravelactions.com) (`lorisleiva/laravel-actions`):
