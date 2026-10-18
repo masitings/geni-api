@@ -4,6 +4,27 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- **Reflected XSS in the docs UI**: the `?api=` query string was written into the Alpine `x-data` attribute with HTML escaping only, which the browser decodes before Alpine evaluates it. The API name is now only accepted when it is `default` or a key of `config('geni.apis')` (anything else returns 404), and every value passed to `x-data` goes through `@js()`.
+- **MCP `tools/call` over HTTP is now opt-in** (`geni.mcp.http_execution`, env `GENI_MCP_HTTP_EXECUTION`, default `false`). Before, anyone who could open the docs could run any documented endpoint, including `DELETE`, with the server's configured bearer token or API key. `geni:mcp:serve` (stdio) is unchanged.
+- `POST` to the MCP endpoint now requires an `application/json` body (415 otherwise), so a cross-site form or `text/plain` request can no longer reach it.
+- Blank docs credentials no longer open the Basic Auth gate for an empty `user:password`. Blank values for both now mean "no gate" (same as `null`); a blank username or password with the other one set now fails closed.
+- Docs form login compares username and password in constant time without short-circuiting; logout regenerates the session id and CSRF token.
+- `custom_css` can no longer close the `<style>` element.
+- Default Tailwind Play CDN and Alpine.js URLs are pinned (`cdn.tailwindcss.com/3.4.17`, `alpinejs@3.14.9`) instead of floating, and the login page now honours the same `renderers.blade.*_cdn_url` config.
+- Internal exception messages are no longer returned to MCP clients; they are reported to the application's exception handler instead.
+
+### Fixed
+
+- `geni:cache`, `geni:check`, `geni:export` and `geni:analyze` ignored `--api` and always built the default document (while storing or labelling it under the requested name). All commands and the docs controller now build documents through one `Geni\Laravel\DocumentGenerator`, and every command rejects unknown `--api` names.
+- MCP `POST` requests returned 419 in form-auth mode because the route sat behind CSRF verification; the MCP route now skips CSRF (safe because of the JSON-only requirement above).
+- JSON-RPC notifications (requests without an `id`) no longer receive a "Method not found" response.
+- `initialize` negotiates the protocol version (`2025-06-18`, `2025-03-26`, `2024-11-05`) instead of echoing whatever the client sends.
+- The MCP executor no longer rewrites a configured `http://` base URL to `https://`.
+- `api_path` now matches whole path segments, so `api` no longer picks up routes such as `apiary/...` or `api-legacy/...`.
+- `?api=v1.routes` (or any dotted name) no longer reaches nested config values and crashes with a 500.
+
 ## [2.0.1] - 2026-09-17
 
 ### Documentation & Maintenance

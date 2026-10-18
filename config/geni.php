@@ -95,8 +95,8 @@ return [
     'renderers' => [
         'blade' => [
             'dark_mode' => true,
-            'tailwind_cdn_url' => 'https://cdn.tailwindcss.com',
-            'alpine_cdn_url' => 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js',
+            'tailwind_cdn_url' => 'https://cdn.tailwindcss.com/3.4.17',
+            'alpine_cdn_url' => 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js',
             'custom_css' => null,
         ],
     ],
@@ -305,6 +305,14 @@ return [
         'exclude_tags' => [],     // Blacklist tags
         'exclude_methods' => ['HEAD', 'OPTIONS'],
         'nest_body' => false,     // Merge body properties to root object vs nesting in 'body'
+
+        /*
+        | Allow `tools/call` over the HTTP endpoint (`POST docs/api/mcp`). Off by
+        | default: when on, anyone who can open the docs can run any documented
+        | endpoint with the credentials below. `geni:mcp:serve` (stdio) is not
+        | affected by this flag.
+        */
+        'http_execution' => (bool) env('GENI_MCP_HTTP_EXECUTION', false),
 
         /*
         |--------------------------------------------------------------------------

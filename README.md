@@ -115,7 +115,8 @@ Configure Claude Desktop or Claude Code to run Geni's built-in MCP server:
   ```
 - **Live HTTP Discovery & Execution Endpoint**:
   - `GET /docs/api/mcp` returns the standard MCP `tools/list` JSON envelope.
-  - `POST /docs/api/mcp` accepts JSON-RPC 2.0 requests (`initialize`, `tools/list`, `tools/call`).
+  - `POST /docs/api/mcp` accepts JSON-RPC 2.0 requests sent as `application/json` (`initialize`, `tools/list`, `tools/call`).
+  - `tools/call` over HTTP is off by default because it runs endpoints with the server's configured credentials for anyone who can open the docs. Enable it with `GENI_MCP_HTTP_EXECUTION=true` (`geni.mcp.http_execution`). `geni:mcp:serve` is not affected.
 
 ## Multi-Version API Documentation
 

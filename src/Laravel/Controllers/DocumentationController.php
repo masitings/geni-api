@@ -5,32 +5,35 @@ declare(strict_types=1);
 namespace Geni\Laravel\Controllers;
 
 use Geni\Inference\Document\OpenApiDocument;
-use Geni\Inference\DocumentAssembler;
-use Geni\Laravel\Commands\Concerns\BuildsInfoOptions;
-use Geni\Laravel\Commands\Concerns\BuildsSecurityConfig;
+use Geni\Laravel\DocumentGenerator;
 use Geni\Laravel\Mcp\McpManifestGenerator;
 use Geni\Laravel\Mcp\McpProtocolHandler;
 use Geni\Laravel\Renderer;
 use Geni\Laravel\Renderers\BladeRenderer;
-use Geni\Laravel\RouteDiscoverer;
-use Geni\SchemaReader\SchemaReader;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Cache;
 
 final class DocumentationController extends Controller
 {
-    use BuildsInfoOptions;
-    use BuildsSecurityConfig;
-
     /**
      * Resolve the requested API name from route parameter or query string.
+     *
+     * The value can come from the `?api=` query string, so it is only accepted
+     * when it names a configured API; anything else is a 404. This keeps
+     * user input out of config lookups, cache keys and the rendered page.
      */
     public function resolveApiName(): string
     {
-        return (string) (request()->route('api')
+        $apiName = request()->route('api')
             ?? request()->route()?->getAction('api')
-            ?? request()->query('api', 'default'));
+            ?? request()->query('api', 'default');
+
+        if (! is_string($apiName) || ! DocumentGenerator::apiExists($apiName)) {
+            abort(404);
+        }
+
+        return $apiName;
     }
 
     /**
@@ -94,7 +97,7 @@ final class DocumentationController extends Controller
         $apiName = $this->resolveApiName();
 
         $cacheEnabled = config('geni.cache.enabled', false);
-        $cacheKey = (config('geni.cache.key', 'geni.openapi')).'.'.$apiName;
+        $cacheKey = DocumentGenerator::cacheKey($apiName);
         $cacheStore = config('geni.cache.store');
 
         if ($cacheEnabled) {
@@ -117,15 +120,21 @@ final class DocumentationController extends Controller
     public function mcp(): Response
     {
         $apiName = $this->resolveApiName();
+
+        // POST request: Handle JSON-RPC 2.0 (initialize, tools/list, tools/call, ping)
+        if (request()->isMethod('POST') && ! request()->isJson()) {
+            return response('MCP requests must be sent as application/json.', 415);
+        }
+
         $document = $this->generateDocument($apiName);
         $mcpConfig = config('geni.mcp', []);
 
-        // POST request: Handle JSON-RPC 2.0 (initialize, tools/list, tools/call, ping)
         if (request()->isMethod('POST')) {
             $payload = request()->json()->all();
             $handler = new McpProtocolHandler;
             $response = $handler->handle($payload, $document, [
                 'mcp' => $mcpConfig,
+                'allow_tools_call' => (bool) ($mcpConfig['http_execution'] ?? false),
             ]);
 
             if ($response === null) {
@@ -167,47 +176,12 @@ final class DocumentationController extends Controller
     public function generateDocument(?string $apiName = 'default'): OpenApiDocument
     {
         $apiName = $apiName ?? 'default';
-        $cacheEnabled = config('geni.cache.enabled', false);
-        $cacheKey = (config('geni.cache.key', 'geni.openapi')).'.'.$apiName;
-        $cacheStore = config('geni.cache.store');
 
-        $routes = RouteDiscoverer::discover($apiName);
+        $document = app(DocumentGenerator::class)->generate($apiName);
 
-        $plainRoutes = array_map(function ($route) {
-            return [
-                'uri' => $route->uri,
-                'methods' => $route->methods,
-                'action' => $route->action,
-                'middleware' => $route->middleware,
-                'name' => $route->name,
-            ];
-        }, $routes);
-
-        $apiConfig = ($apiName !== 'default') ? (config("geni.apis.{$apiName}") ?: []) : [];
-
-        $migrationPaths = $apiConfig['migration_paths'] ?? config('geni.migration_paths', [database_path('migrations')]);
-        $dbSchema = null;
-
-        if (class_exists(SchemaReader::class)) {
-            $schemaReader = new SchemaReader;
-            $dbSchema = $schemaReader->read($migrationPaths);
-        }
-
-        $schemaOverrides = $apiConfig['schema_overrides'] ?? config('geni.schema_overrides', []);
-
-        $assembler = new DocumentAssembler;
-        $document = $assembler->assemble(
-            routes: $plainRoutes,
-            infoOptions: $this->buildInfoOptions($apiName),
-            dbSchema: $dbSchema,
-            schemaOverrides: $schemaOverrides,
-            securityConfig: $this->buildSecurityConfig(),
-            apiName: $apiName
-        );
-
-        if ($cacheEnabled) {
+        if (config('geni.cache.enabled', false)) {
             $json = json_encode($document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-            Cache::store($cacheStore)->put($cacheKey, $json);
+            Cache::store(config('geni.cache.store'))->put(DocumentGenerator::cacheKey($apiName), $json);
         }
 
         return $document;

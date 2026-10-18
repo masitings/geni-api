@@ -23,7 +23,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS Play CDN -->
-    <script src="{{ $configuration['tailwind_cdn_url'] ?? 'https://cdn.tailwindcss.com' }}"></script>
+    <script src="{{ $configuration['tailwind_cdn_url'] ?? 'https://cdn.tailwindcss.com/3.4.17' }}"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -46,7 +46,7 @@
     </script>
 
     <!-- Alpine.js CDN -->
-    <script defer src="{{ $configuration['alpine_cdn_url'] ?? 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js' }}"></script>
+    <script defer src="{{ $configuration['alpine_cdn_url'] ?? 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js' }}"></script>
 
     <!-- Prism.js CDN, real syntax highlighting for code samples -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
@@ -74,15 +74,15 @@
         ::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.6); }
         .dark ::-webkit-scrollbar-thumb { background: rgba(75, 85, 99, 0.5); }
         .dark ::-webkit-scrollbar-thumb:hover { background: rgba(75, 85, 99, 0.8); }
-        {!! $configuration['custom_css'] ?? '' !!}
+        {!! str_ireplace('</style', '<\\/style', (string) ($configuration['custom_css'] ?? '')) !!}
     </style>
 </head>
 <body
     class="h-full bg-slate-50 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100 selection:bg-sky-500 selection:text-white"
     x-data="geniDocs({
-        specUrl: '{{ $url }}',
-        currentApi: '{{ $currentApi ?? 'default' }}',
-        availableApis: {{ json_encode($availableApis ?? []) }}
+        specUrl: @js($url),
+        currentApi: @js($currentApi ?? 'default'),
+        availableApis: @js($availableApis ?? [])
     })"
     x-init="init()"
 >
