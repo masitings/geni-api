@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -43,6 +43,13 @@ jobs:
           extensions: mbstring, json, pdo, sqlite, pdo_sqlite
           tools: composer:v2
           coverage: none
+
+      # Laravel 10 and 11 are past end of life and every release has a published
+      # security advisory, which Composer 2.9+ refuses to install by default.
+      # These jobs only prove compatibility; applications should upgrade.
+      - name: Allow end-of-life Laravel releases
+        if: matrix.laravel <= 11
+        run: composer config audit.block-insecure false
 
       - name: Install dependencies
         run: |
