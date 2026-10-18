@@ -4,6 +4,10 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-10-18
+
+Same code as 3.0.0. The `v3.0.0` tag was first pushed on the 2.0.1 commit and Packagist kept serving that build after the tag was moved, so the release is republished under a new version. Use 3.0.1 or later.
+
 ## [3.0.0] - 2026-10-18
 
 This release brings the generated documents close to what Scramble produces, fixes the security issues found in a review of 2.0.1, and is tested on Laravel 10, 11, 12 and 13.

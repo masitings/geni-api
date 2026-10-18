@@ -10,7 +10,7 @@ Geni is a static-analysis OpenAPI 3.1.0 documentation generator for Laravel. It 
 
 It includes a built-in standalone interactive documentation portal (`BladeRenderer`) that runs out-of-the-box with **zero JavaScript build step** (no React, no Vite, no node_modules required).
 
-Geni supports standard OpenAPI docblock conventions and PHP 8 attributes. If you are migrating from existing documentation tools like Scramble, Geni understands familiar PHPDoc tags and attribute conventions, making switching straightforward.
+Geni supports standard OpenAPI docblock conventions and PHP 8 attributes, so documentation already written as PHPDoc tags and attributes carries over without changes.
 
 > 📖 **Full Documentation**: See [geni.masiting.dev](https://geni.masiting.dev/) for complete architecture details, configuration reference, PHP attributes, and end-to-end examples.
 
@@ -20,8 +20,10 @@ Geni supports standard OpenAPI docblock conventions and PHP 8 attributes. If you
 
 - **Zero database connections.** Column types are reconstructed offline from migration files.
 - **Zero application boot for inference.** Route discovery is the only runtime touchpoint; everything else is static AST analysis.
+- **Responses as Laravel sends them.** `JsonResource` keys are typed from migrations and `$casts`, relations, nested resources and conditional helpers, wrapped in `data` (or `{data, links, meta}` when paginated), with `201` for newly created models.
+- **Customizable.** Transform the document or individual operations with `Geni::configure()`, add rule and exception mappings, configure `servers`.
 - **Standalone docs UI out of the box.** Powered by Blade, Tailwind Play CDN, and Alpine.js with live search, Prism.js syntax highlighting, Markdown descriptions and an interactive Try It console. Prefer a hosted UI? Switch to Scalar or Stoplight Elements with one config value.
-- **Access control.** Docs are open in `local`; elsewhere a `viewApiDocs` gate decides (the Scramble convention), or protect them with isolated form-based / HTTP Basic credentials independent of application user tables.
+- **Access control.** Docs are open in `local`; elsewhere a `viewApiDocs` gate decides, or protect them with isolated form-based / HTTP Basic credentials independent of application user tables.
 - **Runs anywhere your code does** (local checkouts, CI pipelines, pre-commit hooks).
 
 ## Installation
@@ -47,7 +49,9 @@ php artisan vendor:publish --tag=geni-config
 
 3. Or browse the interactive documentation live in your browser at `/docs/api` (open in the `local` environment; see [Access & UI](#access--ui) for other environments).
 
-No annotations required: for endpoints using route-model binding, validated request bodies, and `JsonResource` responses, Geni infers schemas automatically.
+No annotations required: for endpoints using route-model binding, validated request bodies, and `JsonResource` responses, Geni infers schemas automatically. Operation titles and descriptions come from the controller method's PHPDoc: the first paragraph is the summary, the rest the description (Markdown supported).
+
+> Upgrading from 2.x? See the **Upgrading from 2.x** steps in [CHANGELOG.md](CHANGELOG.md): MCP `tools/call` over HTTP is now opt-in and committed specs must be regenerated.
 
 ## Commands Overview
 
@@ -58,7 +62,9 @@ No annotations required: for endpoints using route-model binding, validated requ
 | `php artisan geni:mcp:serve {--api=} {--base-url=} {--timeout=}` | Run live MCP stdio server responding to `tools/list` and executing `tools/call` |
 | `php artisan geni:check {--path=} {--api=}` | Compare current routes against committed spec; exits non-zero on drift |
 | `php artisan geni:analyze {--json} {--api=}` | Inspect all unresolved inference diagnostics |
-| `php artisan geni:cache {--api=}` / `geni:clear` | Pre-generate and cache the document, or clear cache |
+| `php artisan geni:cache {--api=}` / `geni:clear {--api=}` | Pre-generate and cache the document, or clear cache |
+
+`--api` must be `default` or a key of `geni.apis`; any other name fails the command.
 
 ## Model Context Protocol (MCP) Integration
 
@@ -120,7 +126,7 @@ Configure Claude Desktop or Claude Code to run Geni's built-in MCP server:
 
 ## Access & UI
 
-Outside the `local` environment the docs return 404 unless you define a `viewApiDocs` gate, exactly like Scramble:
+Outside the `local` environment the docs return 404 unless you define a `viewApiDocs` gate:
 
 ```php
 // AppServiceProvider::boot()
@@ -135,7 +141,7 @@ Pick the UI with `geni.renderer` (or `renderer` inside an entry of `geni.apis`):
 |---|---|
 | `blade` (default) | Built-in portal: version switcher, Try It console, MCP-friendly, no build step |
 | `scalar` | [Scalar API Reference](https://github.com/scalar/scalar); options in `renderers.scalar.configuration` are passed to Scalar as-is |
-| `elements` | [Stoplight Elements](https://github.com/stoplightio/elements), Scramble's default UI |
+| `elements` | [Stoplight Elements](https://github.com/stoplightio/elements) |
 
 Scalar and Elements load pinned CDN builds; override `script_url` / `stylesheet_url` to self-host them. Descriptions written in PHPDoc support a safe Markdown subset in the built-in portal (paragraphs, lists, headings, fenced code, `code`, **bold**, *italic*, links).
 
@@ -174,7 +180,41 @@ Classes implementing `Geni\Laravel\Contracts\DocumentTransformer`, `Geni\Laravel
 
 ### Operation IDs
 
-Every operation gets an `operationId`, chosen the way Scramble does: `#[Endpoint(operationId: ...)]` or `@operationId`, then the route name without a leading `api.` (`api.users.index` → `users.index`), then the controller and method (`UserController@show` → `user.show`), made unique across the document. A `PATCH` documented next to `PUT` on the same route gets a `_patch` suffix. Generated ids do not rename MCP tools; set `geni.mcp.tool_naming` to `operation_id` to use them.
+Every operation gets an `operationId`, chosen in this order: `#[Endpoint(operationId: ...)]` or `@operationId`, then the route name without a leading `api.` (`api.users.index` → `users.index`), then the controller and method (`UserController@show` → `user.show`), made unique across the document. A `PATCH` documented next to `PUT` on the same route gets a `_patch` suffix. Generated ids do not rename MCP tools; set `geni.mcp.tool_naming` to `operation_id` to use them.
+
+## Resources & Responses
+
+Given a resource like this:
+
+```php
+/** @mixin \App\Models\User */
+class UserResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,                                  // integer (migration)
+            'email_verified_at' => $this->email_verified_at,    // ["string", "null"], date-time
+            'is_admin' => $this->is_admin,                      // boolean ($casts)
+            'status' => $this->status,                          // $ref UserStatus (enum cast)
+            'posts' => PostResource::collection($this->whenLoaded('posts')), // optional array of PostResource
+            'team' => new TeamResource($this->whenLoaded('team')),           // optional; nullable if team_id is nullable
+            'posts_count' => $this->whenCounted('posts'),       // optional integer
+        ];
+    }
+}
+```
+
+Geni documents `UserResource` as a component with those types and a `required` list (conditional keys are optional), and the response the way Laravel sends it:
+
+| Controller returns | Documented response |
+|---|---|
+| `new UserResource($user)` | `{data: UserResource}` (plus `with()` / `additional()` keys; `$wrap` respected) |
+| `UserResource::collection(User::all())` | `{data: UserResource[]}` |
+| `UserResource::collection(User::paginate())` | `{data, links, meta}` |
+| `new UserResource(User::create($data))` | `201` |
+| `$user` (typed parameter), `User::findOrFail($id)` | serialized `User` model (`$hidden` respected) |
+| `response()->noContent()` | `204` |
 
 ## Multi-Version API Documentation
 
@@ -238,10 +278,6 @@ Geni parses code statically rather than evaluating runtime values:
 ---
 
 For in-depth guides on all features, custom renderers, security schemes, and PHP attributes, please read the full documentation at [geni.masiting.dev](https://geni.masiting.dev/).
-
-## Disclaimer
-
-Scramble is a trademark of dedoc.co and Roman Lytvynenko. Geni is an independent open-source project and is not affiliated with, endorsed by, or sponsored by dedoc.co.
 
 ## License
 
