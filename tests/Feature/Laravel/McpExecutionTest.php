@@ -195,6 +195,8 @@ class McpExecutionTest extends TestCase
 
     public function test_http_endpoint_executes_tools_call_via_post(): void
     {
+        config(['geni.mcp.http_execution' => true]);
+
         Http::fake([
             'http://localhost/api/posts' => Http::response([
                 ['id' => 1, 'title' => 'Post One'],

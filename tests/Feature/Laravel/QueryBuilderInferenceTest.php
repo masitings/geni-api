@@ -138,7 +138,7 @@ class QueryBuilderInferenceTest extends TestCase
 
         $op = $spec['paths']['/api/query-builder-dynamic']['get'];
         expect($op)->toHaveKey('x-geni-unresolved');
-        $diagnostics = $op['x-geni-unresolved']['x-geni-unresolved'] ?? $op['x-geni-unresolved'];
+        $diagnostics = $op['x-geni-unresolved'];
         $reasons = array_column($diagnostics, 'reason');
 
         $found = false;

@@ -4,18 +4,14 @@ declare(strict_types=1);
 
 namespace Geni\Laravel\Commands;
 
-use Geni\Inference\DocumentAssembler;
-use Geni\Laravel\Commands\Concerns\BuildsInfoOptions;
-use Geni\Laravel\Commands\Concerns\BuildsSecurityConfig;
-use Geni\Laravel\RouteDiscoverer;
-use Geni\SchemaReader\SchemaReader;
+use Geni\Laravel\Commands\Concerns\ResolvesApiOption;
+use Geni\Laravel\DocumentGenerator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
 final class ExportCommand extends Command
 {
-    use BuildsInfoOptions;
-    use BuildsSecurityConfig;
+    use ResolvesApiOption;
 
     /**
      * The name and signature of the console command.
@@ -35,11 +31,15 @@ final class ExportCommand extends Command
 
     public function handle(): int
     {
-        $apiName = $this->option('api') ?: 'default';
+        $apiName = $this->resolveApiOption();
+        if ($apiName === null) {
+            return self::FAILURE;
+        }
+
         $path = $this->option('path') ?: 'openapi.json';
 
         $cacheEnabled = config('geni.cache.enabled', false);
-        $cacheKey = (config('geni.cache.key', 'geni.openapi')).'.'.$apiName;
+        $cacheKey = DocumentGenerator::cacheKey($apiName);
         $cacheStore = config('geni.cache.store');
 
         $json = null;
@@ -48,37 +48,7 @@ final class ExportCommand extends Command
         }
 
         if ($json === null) {
-            // 1. Discover routes
-            $routes = RouteDiscoverer::discover();
-
-            $plainRoutes = array_map(function ($route) {
-                return [
-                    'uri' => $route->uri,
-                    'methods' => $route->methods,
-                    'action' => $route->action,
-                    'middleware' => $route->middleware,
-                    'name' => $route->name,
-                ];
-            }, $routes);
-
-            // 2. Read schema if migration paths are configured
-            $migrationPaths = config('geni.migration_paths', [database_path('migrations')]);
-            $dbSchema = null;
-            if (class_exists(SchemaReader::class)) {
-                $schemaReader = new SchemaReader;
-                $dbSchema = $schemaReader->read($migrationPaths);
-            }
-
-            // 3. Assemble document
-            $assembler = new DocumentAssembler;
-            $document = $assembler->assemble(
-                routes: $plainRoutes,
-                infoOptions: $this->buildInfoOptions(),
-                dbSchema: $dbSchema,
-                schemaOverrides: config('geni.schema_overrides', []),
-                securityConfig: $this->buildSecurityConfig(),
-                apiName: $apiName
-            );
+            $document = app(DocumentGenerator::class)->generate($apiName);
 
             $json = json_encode($document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
             if ($json === false) {
@@ -92,7 +62,6 @@ final class ExportCommand extends Command
             }
         }
 
-        // 4. Write to file
         $destination = file_exists($path) || str_starts_with($path, '/') ? $path : base_path($path);
         $directory = dirname($destination);
         if (! is_dir($directory)) {

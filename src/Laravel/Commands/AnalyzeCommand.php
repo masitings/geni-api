@@ -4,17 +4,13 @@ declare(strict_types=1);
 
 namespace Geni\Laravel\Commands;
 
-use Geni\Inference\DocumentAssembler;
-use Geni\Laravel\Commands\Concerns\BuildsInfoOptions;
-use Geni\Laravel\Commands\Concerns\BuildsSecurityConfig;
-use Geni\Laravel\RouteDiscoverer;
-use Geni\SchemaReader\SchemaReader;
+use Geni\Laravel\Commands\Concerns\ResolvesApiOption;
+use Geni\Laravel\DocumentGenerator;
 use Illuminate\Console\Command;
 
 final class AnalyzeCommand extends Command
 {
-    use BuildsInfoOptions;
-    use BuildsSecurityConfig;
+    use ResolvesApiOption;
 
     protected $signature = 'geni:analyze
                             {--api=default : The API configuration name to analyze}
@@ -24,35 +20,14 @@ final class AnalyzeCommand extends Command
 
     public function handle(): int
     {
-        $apiName = $this->option('api') ?: 'default';
-        $routes = RouteDiscoverer::discover();
-
-        $plainRoutes = array_map(function ($route) {
-            return [
-                'uri' => $route->uri,
-                'methods' => $route->methods,
-                'action' => $route->action,
-                'middleware' => $route->middleware,
-                'name' => $route->name,
-            ];
-        }, $routes);
-
-        $migrationPaths = config('geni.migration_paths', [database_path('migrations')]);
-        $dbSchema = null;
-        if (class_exists(SchemaReader::class)) {
-            $schemaReader = new SchemaReader;
-            $dbSchema = $schemaReader->read($migrationPaths);
+        $apiName = $this->resolveApiOption();
+        if ($apiName === null) {
+            return self::FAILURE;
         }
 
-        $assembler = new DocumentAssembler;
-        $assembler->assemble(
-            routes: $plainRoutes,
-            infoOptions: $this->buildInfoOptions(),
-            dbSchema: $dbSchema,
-            schemaOverrides: config('geni.schema_overrides', []),
-            securityConfig: $this->buildSecurityConfig(),
-            apiName: $apiName
-        );
+        $generator = app(DocumentGenerator::class);
+        $assembler = $generator->assemblerFor($apiName);
+        $generator->generate($apiName, $assembler);
 
         $diagnostics = $assembler->recordedDiagnostics;
 

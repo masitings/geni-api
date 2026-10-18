@@ -6,7 +6,6 @@ namespace Geni\Inference;
 
 use Geni\Inference\Document\Components;
 use Geni\Inference\Document\Schema;
-use Geni\SchemaReader\ColumnType;
 use Geni\SchemaReader\DatabaseSchema;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
@@ -14,7 +13,6 @@ use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_;
-use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
@@ -51,6 +49,10 @@ final class ResourceResponseInferer
     /** @var array<string, string> */
     private array $schemaOverrides = [];
 
+    private ModelSchemaResolver $models;
+
+    private ResourceSchemaBuilder $resources;
+
     public function __construct(
         ?Parser $parser = null,
         ?NodeFinder $finder = null,
@@ -64,12 +66,29 @@ final class ResourceResponseInferer
         $this->tableResolver = $tableResolver ?? new ModelTableResolver;
         $this->enumParser = $enumParser ?? new BackedEnumParser;
         $this->phpDocParser = $phpDocParser ?? new PhpDocAnnotationParser;
-        $this->schemaOverrides = $schemaOverrides;
+        $this->models = new ModelSchemaResolver($this->parser, $this->finder, $this->tableResolver, $this->enumParser);
+        $this->resources = new ResourceSchemaBuilder($this->models, $this->parser, $this->finder, $this->phpDocParser);
+        $this->setSchemaOverrides($schemaOverrides);
     }
 
     public function setSchemaOverrides(array $overrides): void
     {
         $this->schemaOverrides = $overrides;
+        $this->models->setSchemaOverrides($overrides);
+    }
+
+    /**
+     * Response schema for a class named in `@response` / `#[Response]` or a
+     * declared return type: resources are wrapped like Laravel sends them,
+     * models are serialized, Data objects inferred.
+     *
+     * @return array{schema: Schema, diagnostics: list<InferenceDiagnostic>, description?: string}|null
+     */
+    public function inferForClass(string $class, ActionAst $actionAst, ?DatabaseSchema $schema, ?Components $components): ?array
+    {
+        $result = $this->inferFromTypeFqcn(ltrim($class, '\\'), $actionAst, $schema, [], $components);
+
+        return $this->hasShape($result['schema']) ? $result : null;
     }
 
     /**
@@ -87,7 +106,7 @@ final class ResourceResponseInferer
 
         foreach ($returns as $returnStmt) {
             $result = $this->inferFromReturnStatement($returnStmt, $actionAst, $schema, $modelTableOverrides, $components);
-            if ($result['schema']->properties !== null || $result['schema']->ref !== null || $result['schema']->type !== null) {
+            if ($this->hasShape($result['schema']) || isset($result['status'])) {
                 return $result;
             }
         }
@@ -112,11 +131,64 @@ final class ResourceResponseInferer
         ActionAst $actionAst,
         ?DatabaseSchema $schema = null,
         array $modelTableOverrides = [],
-        ?Components $components = null
+        ?Components $components = null,
+        ?Array_ $additionalFromChain = null,
+        bool $statusResolved = false,
     ): array {
         $value = $returnStmt->expr;
         if ($value === null) {
             return ['schema' => new Schema, 'diagnostics' => []];
+        }
+
+        // response()->noContent() → 204 without a body
+        if ($value instanceof MethodCall && $value->name instanceof Identifier && $value->name->toString() === 'noContent'
+            && $value->var instanceof FuncCall && $value->var->name instanceof Name && $value->var->name->toString() === 'response') {
+            return ['schema' => new Schema, 'diagnostics' => [], 'status' => 204, 'description' => 'No content'];
+        }
+
+        // (new FooResource($x))->additional([...]), ->response(), ->setStatusCode(...)
+        $additional = $additionalFromChain;
+        $explicitStatus = null;
+        while ($value instanceof MethodCall && $value->name instanceof Identifier
+            && in_array($value->name->toString(), ['additional', 'response', 'setStatusCode', 'withResponse', 'header', 'withHeaders'], true)) {
+            $firstArg = $value->args[0] ?? null;
+            $firstValue = $firstArg instanceof Node\Arg ? $firstArg->value : null;
+            if ($value->name->toString() === 'additional' && $firstValue instanceof Array_) {
+                $additional = $firstValue;
+            }
+            if ($value->name->toString() === 'setStatusCode' && $firstValue instanceof Int_) {
+                $explicitStatus = $firstValue->value;
+            }
+            $value = $value->var;
+        }
+
+        if (! $statusResolved) {
+            $status = $explicitStatus ?? $this->inferStatus($value, $actionAst);
+            $result = $this->inferFromReturnStatement(new Return_($value), $actionAst, $schema, $modelTableOverrides, $components, $additional, true);
+
+            if ($status !== null && $status !== 200 && ! isset($result['status'])) {
+                $result['status'] = $status;
+            }
+
+            return $result;
+        }
+
+        // return $user; where $user is a typed action parameter
+        if ($value instanceof Variable && is_string($value->name) && $actionAst->node instanceof ClassMethod) {
+            foreach ($actionAst->node->params as $param) {
+                if ($param->var instanceof Variable && $param->var->name === $value->name && $param->type instanceof Name) {
+                    $typeFqcn = $this->resolveNameToString($param->type, $actionAst);
+                    if ($typeFqcn !== null) {
+                        return $this->inferFromTypeFqcn($typeFqcn, $actionAst, $schema, $modelTableOverrides, $components, $additional);
+                    }
+                }
+            }
+        }
+
+        // User::findOrFail($id), User::query()->where(...)->first(), User::all(), ...->get()
+        $modelQuery = $this->inferModelQuery($value, $actionAst, $schema, $components);
+        if ($modelQuery !== null) {
+            return $modelQuery;
         }
 
         // 1. response()->json([...]) or Response::json([...]) (FR-016)
@@ -170,9 +242,19 @@ final class ResourceResponseInferer
                 return $detector->inferSchemaFromDataClass($resourceFqcn, $schema, $components);
             }
 
+            // Check if it's a ResourceCollection subclass (new UserCollection($users))
+            if ($this->resources->isResourceCollection($resourceFqcn)) {
+                $itemResource = $this->resources->collectedResource($resourceFqcn);
+                if ($itemResource !== null) {
+                    $argument = $value instanceof New_ || $value instanceof StaticCall ? ($value->args[0] ?? null) : null;
+
+                    return $this->resourceCollectionEnvelope($itemResource, $argument instanceof Node\Arg ? $argument->value : null, $schema, $components);
+                }
+            }
+
             // Check if it's a JsonResource
-            if ($this->resourceExtendsJsonResource($resourceFqcn)) {
-                return $this->inferSingleResourceResponse($resourceFqcn, $actionAst, $schema, $modelTableOverrides, $components);
+            if ($this->resources->isResource($resourceFqcn)) {
+                return $this->inferSingleResourceResponse($resourceFqcn, $actionAst, $schema, $modelTableOverrides, $components, $additional);
             }
 
             // Check if it's an Eloquent model
@@ -293,144 +375,295 @@ final class ResourceResponseInferer
         array $modelTableOverrides,
         ?Components $components
     ): array {
-        $resourceFqcn = $this->resolveNameToString($call->class, $actionAst);
+        $resourceFqcn = $call->class instanceof Name ? $this->resolveNameToString($call->class, $actionAst) : null;
         if ($resourceFqcn === null) {
             return ['schema' => new Schema, 'diagnostics' => []];
         }
 
-        // Infer underlying item resource schema
-        $itemResult = $this->inferSingleResourceResponse($resourceFqcn, $actionAst, $schema, $modelTableOverrides, $components);
+        $argument = $call->args[0] ?? null;
 
-        // Check if the argument is a paginator
-        $isPaginator = false;
-        $paginatorType = 'LengthAwarePaginator';
-        if (isset($call->args[0])) {
-            $argVal = $call->args[0]->value;
-            if (($argVal instanceof MethodCall || $argVal instanceof StaticCall) && $argVal->name instanceof Identifier) {
-                $mName = $argVal->name->toString();
-                if ($mName === 'paginate') {
-                    $isPaginator = true;
-                    $paginatorType = 'LengthAwarePaginator';
-                } elseif ($mName === 'simplePaginate') {
-                    $isPaginator = true;
-                    $paginatorType = 'Paginator';
-                } elseif ($mName === 'cursorPaginate') {
-                    $isPaginator = true;
-                    $paginatorType = 'CursorPaginator';
-                }
-            }
-        }
-
-        if ($isPaginator) {
-            $paginatorSchema = $this->buildPaginatorEnvelope($itemResult['schema'], $paginatorType);
-
-            return ['schema' => $paginatorSchema, 'diagnostics' => $itemResult['diagnostics']];
-        }
-
-        // Otherwise: plain array of items
-        $arraySchema = new Schema;
-        $arraySchema->type = 'array';
-        $arraySchema->items = $itemResult['schema'];
-
-        return ['schema' => $arraySchema, 'diagnostics' => $itemResult['diagnostics']];
+        return $this->resourceCollectionEnvelope($resourceFqcn, $argument instanceof Node\Arg ? $argument->value : null, $schema, $components);
     }
 
+    /**
+     * `{data: [...]}` for a plain collection, `{data, links, meta}` when the
+     * collected value is a paginator, exactly as Laravel serializes it.
+     *
+     * @return array{schema: Schema, diagnostics: list<InferenceDiagnostic>, description: string}
+     */
+    private function resourceCollectionEnvelope(string $resourceFqcn, ?Node $argument, ?DatabaseSchema $schema, ?Components $components): array
+    {
+        $items = Schema::ofType('array');
+        $items->items = $this->resources->reference($resourceFqcn, $schema, $components);
+        $diagnostics = $this->resources->takeDiagnostics();
+        $name = $this->models->shortName($resourceFqcn);
+
+        $paginator = null;
+        if (($argument instanceof MethodCall || $argument instanceof StaticCall) && $argument->name instanceof Identifier) {
+            $paginator = match ($argument->name->toString()) {
+                'paginate' => 'LengthAwarePaginator',
+                'simplePaginate' => 'Paginator',
+                'cursorPaginate' => 'CursorPaginator',
+                default => null,
+            };
+        }
+
+        $envelope = Schema::ofType('object');
+
+        if ($paginator === null) {
+            $envelope->properties = ['data' => $items];
+            $envelope->required = ['data'];
+
+            return ['schema' => $envelope, 'diagnostics' => $diagnostics, 'description' => sprintf('Array of `%s`', $name)];
+        }
+
+        $links = Schema::ofType('object');
+        $links->properties = [
+            'first' => Schema::ofType(['string', 'null']),
+            'last' => Schema::ofType(['string', 'null']),
+            'prev' => Schema::ofType(['string', 'null']),
+            'next' => Schema::ofType(['string', 'null']),
+        ];
+        $links->required = ['first', 'last', 'prev', 'next'];
+
+        $envelope->properties = ['data' => $items, 'links' => $links, 'meta' => $this->paginationMeta($paginator)];
+        $envelope->required = ['data', 'links', 'meta'];
+
+        return ['schema' => $envelope, 'diagnostics' => $diagnostics, 'description' => sprintf('Paginated set of `%s`', $name)];
+    }
+
+    /**
+     * The `meta` block of a paginated resource response: the paginator's
+     * `toArray()` minus `data` and the `*_url` keys (those go to `links`).
+     */
+    private function paginationMeta(string $paginator): Schema
+    {
+        $meta = Schema::ofType('object');
+
+        $pageLink = Schema::ofType('object');
+        $pageLink->properties = [
+            'url' => Schema::ofType(['string', 'null']),
+            'label' => Schema::ofType('string'),
+            'active' => Schema::ofType('boolean'),
+        ];
+        $pageLink->required = ['url', 'label', 'active'];
+        $pageLinks = Schema::ofType('array');
+        $pageLinks->items = $pageLink;
+
+        $field = function ($type, ?string $description = null, ?int $minimum = null): Schema {
+            $schema = Schema::ofType($type);
+            $schema->description = $description;
+            $schema->minimum = $minimum;
+
+            return $schema;
+        };
+        $pageLinks->description = 'Generated paginator links.';
+        $path = $field(['string', 'null'], 'Base path for paginator generated URLs.');
+        $perPage = $field('integer', 'Number of items shown per page.', 0);
+
+        $meta->properties = match ($paginator) {
+            'CursorPaginator' => [
+                'path' => $path,
+                'per_page' => $perPage,
+                'next_cursor' => $field(['string', 'null'], 'The "cursor" that points to the next set of items.'),
+                'prev_cursor' => $field(['string', 'null'], 'The "cursor" that points to the previous set of items.'),
+            ],
+            'Paginator' => [
+                'current_page' => $field('integer', null, 1),
+                'current_page_url' => $field('string'),
+                'from' => $field(['integer', 'null'], null, 1),
+                'path' => $path,
+                'per_page' => $perPage,
+                'to' => $field(['integer', 'null'], 'Number of the last item in the slice.', 1),
+            ],
+            default => [
+                'current_page' => $field('integer', null, 1),
+                'from' => $field(['integer', 'null'], null, 1),
+                'last_page' => $field('integer', null, 1),
+                'links' => $pageLinks,
+                'path' => $path,
+                'per_page' => $perPage,
+                'to' => $field(['integer', 'null'], 'Number of the last item in the slice.', 1),
+                'total' => $field('integer', 'Total number of items being paginated.', 0),
+            ],
+        };
+        $meta->required = array_keys($meta->properties);
+
+        return $meta;
+    }
+
+    /**
+     * A single resource, wrapped the way Laravel sends it: `{data: {...}}`
+     * (or the resource's `$wrap` key) plus `with()` / `additional()` keys.
+     *
+     * @return array{schema: Schema, diagnostics: list<InferenceDiagnostic>, description: string}
+     */
     private function inferSingleResourceResponse(
         string $resourceFqcn,
         ActionAst $actionAst,
         ?DatabaseSchema $schema,
         array $modelTableOverrides,
-        ?Components $components
+        ?Components $components,
+        ?Array_ $additional = null
     ): array {
-        $shortName = substr(strrchr('\\'.$resourceFqcn, '\\') ?: $resourceFqcn, 1);
+        $reference = $this->resources->reference($resourceFqcn, $schema, $components);
+        $description = sprintf('`%s`', $this->models->shortName($resourceFqcn));
+        $wrapKey = $this->resources->wrapKey($resourceFqcn);
 
-        $parseResult = $this->parseResourceToArrayReturn($resourceFqcn);
-        if ($parseResult['arrayNode'] === null) {
-            return [
-                'schema' => new Schema,
-                'diagnostics' => [
-                    new InferenceDiagnostic($actionAst->file, 1, sprintf('Could not find toArray() in resource %s', $resourceFqcn)),
-                ],
-            ];
+        if ($wrapKey === null) {
+            return ['schema' => $reference, 'diagnostics' => $this->resources->takeDiagnostics(), 'description' => $description];
         }
 
-        $modelFqcn = $this->resolveModelFromResourceClass($resourceFqcn, $actionAst);
-        $modelSource = $this->resolveClassSource($modelFqcn ?? '', $modelTableOverrides[$modelFqcn ?? ''] ?? null);
-        $tableName = $this->tableResolver->resolve($modelFqcn ?? '', $modelSource);
+        $envelope = Schema::ofType('object');
+        $envelope->properties = [$wrapKey => $reference];
+        $envelope->required = [$wrapKey];
 
-        $resourceSchemaResult = $this->buildSchemaFromResourceArray(
-            $parseResult['arrayNode'],
-            $parseResult['file'],
-            $modelFqcn,
-            $tableName,
-            $schema,
-            []
-        );
+        $with = $this->resources->withProperties($resourceFqcn, $schema, $components);
+        $envelope->properties = array_merge($envelope->properties, $with['properties']);
+        $envelope->required = array_merge($envelope->required, $with['required']);
 
-        $resourceSchema = $resourceSchemaResult['schema'];
-
-        if ($components !== null) {
-            $components->addSchema($shortName, $resourceSchema);
-            $refSchema = new Schema;
-            $refSchema->ref = '#/components/schemas/'.$shortName;
-
-            return ['schema' => $refSchema, 'diagnostics' => $resourceSchemaResult['diagnostics']];
+        if ($additional !== null) {
+            $extra = $this->resources->literalObject($additional, $actionAst->file, $schema, $components);
+            $envelope->properties = array_merge($envelope->properties, $extra->properties ?? []);
+            $envelope->required = array_merge($envelope->required, $extra->required ?? []);
         }
 
-        return $resourceSchemaResult;
+        $envelope->required = array_values(array_unique($envelope->required));
+
+        return ['schema' => $envelope, 'diagnostics' => $this->resources->takeDiagnostics(), 'description' => $description];
     }
 
+    /**
+     * @return array{schema: Schema, diagnostics: list<InferenceDiagnostic>, description: string}
+     */
     private function inferModelResponse(string $modelFqcn, ?DatabaseSchema $schema, ?Components $components): array
     {
-        $shortName = substr(strrchr('\\'.$modelFqcn, '\\') ?: $modelFqcn, 1);
-        $modelSource = $this->resolveClassSource($modelFqcn);
-        $tableName = $this->tableResolver->resolve($modelFqcn, $modelSource);
+        $modelSchema = $components !== null
+            ? $this->models->reference($modelFqcn, $schema, $components)
+            : $this->models->serializedSchema($modelFqcn, $schema, null);
 
-        $properties = [];
-        if ($schema !== null) {
-            $table = $schema->tables[$tableName] ?? null;
-            if ($table === null) {
-                foreach ($schema->tables as $k => $t) {
-                    if ($t->name === $tableName || str_ends_with($k, '.'.$tableName)) {
-                        $table = $t;
-                        break;
-                    }
-                }
+        return ['schema' => $modelSchema, 'diagnostics' => [], 'description' => sprintf('`%s`', $this->models->shortName($modelFqcn))];
+    }
+
+    /**
+     * `User::findOrFail($id)`, `User::query()->where(...)->first()` → the model;
+     * `User::all()`, `User::where(...)->get()` → an array of models.
+     *
+     * @return array{schema: Schema, diagnostics: list<InferenceDiagnostic>, description: string}|null
+     */
+    private function inferModelQuery(Node $value, ActionAst $actionAst, ?DatabaseSchema $schema, ?Components $components): ?array
+    {
+        if (! ($value instanceof MethodCall || $value instanceof StaticCall) || ! $value->name instanceof Identifier) {
+            return null;
+        }
+
+        $terminal = $value->name->toString();
+        $single = ['find', 'findOrFail', 'first', 'firstOrFail', 'sole', 'create', 'firstOrCreate', 'updateOrCreate', 'firstOrNew', 'forceCreate'];
+        $many = ['get', 'all'];
+
+        if (! in_array($terminal, $single, true) && ! in_array($terminal, $many, true)) {
+            return null;
+        }
+
+        $root = $value;
+        while ($root instanceof MethodCall) {
+            $root = $root->var;
+        }
+
+        if (! $root instanceof StaticCall || ! $root->class instanceof Name) {
+            return null;
+        }
+
+        $modelFqcn = $this->resolveNameToString($root->class, $actionAst);
+        if ($modelFqcn === null || ! $this->isModelClass($modelFqcn)) {
+            return null;
+        }
+
+        $result = $this->inferModelResponse($modelFqcn, $schema, $components);
+
+        if (in_array($terminal, $many, true)) {
+            $array = Schema::ofType('array');
+            $array->items = $result['schema'];
+            $result['schema'] = $array;
+            $result['description'] = sprintf('Array of `%s`', $this->models->shortName($modelFqcn));
+        }
+
+        return $result;
+    }
+
+    /**
+     * Status code of the returned value when it is not 200:
+     * `response()->json($data, 201)`, or a resource wrapping a model that was
+     * just created (`Model::create()`, `->create()` on a relation, `new Model`
+     * + `->save()`), which Laravel sends as 201.
+     */
+    private function inferStatus(Node $value, ActionAst $actionAst): ?int
+    {
+        if ($this->isResponseJsonCall($value) && $value instanceof MethodCall) {
+            $statusArg = $value->args[1] ?? null;
+
+            return $statusArg instanceof Node\Arg && $statusArg->value instanceof Int_ ? $statusArg->value->value : null;
+        }
+
+        $resourceArgument = null;
+        if ($value instanceof New_ || ($value instanceof StaticCall && $value->name instanceof Identifier && $value->name->toString() === 'make')) {
+            $argument = $value->args[0] ?? null;
+            $resourceArgument = $argument instanceof Node\Arg ? $argument->value : null;
+        }
+
+        if ($resourceArgument === null) {
+            return null;
+        }
+
+        if ($this->isCreateCall($resourceArgument)) {
+            return 201;
+        }
+
+        if (! $resourceArgument instanceof Variable || ! is_string($resourceArgument->name)) {
+            return null;
+        }
+
+        $variable = $resourceArgument->name;
+        $assignedNew = false;
+
+        foreach ($this->finder->findInstanceOf($actionAst->node, Node\Expr\Assign::class) as $assign) {
+            if (! $assign->var instanceof Variable || $assign->var->name !== $variable) {
+                continue;
             }
-            if ($table !== null) {
-                foreach ($table->columns as $colName => $col) {
-                    $prop = new Schema;
-                    [$type, $format] = $this->columnTypeToOpenApi($col->type);
-                    $prop->type = $type;
-                    if ($format !== null) {
-                        $prop->format = $format;
-                    }
-                    if ($col->nullable) {
-                        $prop->type = is_array($prop->type) ? array_merge($prop->type, ['null']) : [$prop->type, 'null'];
-                    }
-                    $properties[$colName] = $prop;
-                }
+            if ($this->isCreateCall($assign->expr)) {
+                return 201;
+            }
+            if ($assign->expr instanceof New_) {
+                $assignedNew = true;
             }
         }
 
-        $modelSchema = new Schema;
-        $modelSchema->type = 'object';
-        $modelSchema->properties = $properties;
+        if ($assignedNew) {
+            $saves = $this->finder->find($actionAst->node, fn (Node $node) => $node instanceof MethodCall
+                && $node->var instanceof Variable && $node->var->name === $variable
+                && $node->name instanceof Identifier && $node->name->toString() === 'save');
 
-        if ($components !== null) {
-            $components->addSchema($shortName, $modelSchema);
-            $refSchema = new Schema;
-            $refSchema->ref = '#/components/schemas/'.$shortName;
-
-            return ['schema' => $refSchema, 'diagnostics' => []];
+            return $saves !== [] ? 201 : null;
         }
 
-        return ['schema' => $modelSchema, 'diagnostics' => []];
+        return null;
+    }
+
+    private function isCreateCall(Node $expr): bool
+    {
+        return ($expr instanceof StaticCall || $expr instanceof MethodCall)
+            && $expr->name instanceof Identifier
+            && in_array($expr->name->toString(), ['create', 'forceCreate', 'createQuietly', 'forceCreateQuietly'], true);
+    }
+
+    private function hasShape(Schema $schema): bool
+    {
+        return $schema->properties !== null || $schema->ref !== null || $schema->type !== null || $schema->anyOf !== null;
     }
 
     private function inferPlainPhpObjectResponse(string $classFqcn, ?Components $components): array
     {
-        $file = $this->resolveClassFile($classFqcn);
+        $file = ClassFileLocator::locate($classFqcn);
         if ($file === null || ! is_file($file)) {
             return ['schema' => new Schema, 'diagnostics' => []];
         }
@@ -597,15 +830,24 @@ final class ResourceResponseInferer
         ActionAst $actionAst,
         ?DatabaseSchema $schema,
         array $modelTableOverrides,
-        ?Components $components
+        ?Components $components,
+        ?Array_ $additional = null
     ): array {
         $detector = new LaravelDataDetector($this->parser, $this->finder);
         if ($detector->isDataClass($typeFqcn)) {
             return $detector->inferSchemaFromDataClass($typeFqcn, $schema, $components);
         }
 
-        if ($this->resourceExtendsJsonResource($typeFqcn)) {
-            return $this->inferSingleResourceResponse($typeFqcn, $actionAst, $schema, $modelTableOverrides, $components);
+        if ($this->resources->isResourceCollection($typeFqcn)) {
+            $itemResource = $this->resources->collectedResource($typeFqcn);
+
+            return $itemResource !== null
+                ? $this->resourceCollectionEnvelope($itemResource, null, $schema, $components)
+                : ['schema' => new Schema, 'diagnostics' => []];
+        }
+
+        if ($this->resources->isResource($typeFqcn)) {
+            return $this->inferSingleResourceResponse($typeFqcn, $actionAst, $schema, $modelTableOverrides, $components, $additional);
         }
 
         if ($this->isModelClass($typeFqcn)) {
@@ -617,48 +859,7 @@ final class ResourceResponseInferer
 
     private function isModelClass(string $className): bool
     {
-        if (str_contains($className, '\\Models\\') || is_subclass_of($className, 'Illuminate\Database\Eloquent\Model')) {
-            return true;
-        }
-
-        $file = $this->resolveClassFile($className);
-        if ($file === null || ! is_file($file)) {
-            return false;
-        }
-
-        $code = file_get_contents($file);
-        if ($code === false) {
-            return false;
-        }
-
-        try {
-            $stmts = $this->parser->parse($code);
-            if ($stmts === null) {
-                return false;
-            }
-            /** @var Class_|null $c */
-            $c = $this->finder->findFirstInstanceOf($stmts, Class_::class);
-
-            return $c !== null && $c->extends !== null && (str_ends_with($c->extends->toString(), 'Model') || $c->extends->toString() === 'Model');
-        } catch (\Throwable) {
-            return false;
-        }
-    }
-
-    private function columnTypeToOpenApi(ColumnType $type): array
-    {
-        return match ($type) {
-            ColumnType::Integer => ['integer', null],
-            ColumnType::Float, ColumnType::Decimal => ['number', null],
-            ColumnType::Boolean => ['boolean', null],
-            ColumnType::Uuid => ['string', 'uuid'],
-            ColumnType::Ulid => ['string', 'ulid'],
-            ColumnType::Date => ['string', 'date'],
-            ColumnType::DateTime => ['string', 'date-time'],
-            ColumnType::Time => ['string', 'time'],
-            ColumnType::Json => ['object', null],
-            default => ['string', null],
-        };
+        return $this->models->isModel($className);
     }
 
     private function resolveNameToString(Name $expr, ActionAst $actionAst): ?string
@@ -680,290 +881,5 @@ final class ResourceResponseInferer
         }
 
         return implode('\\', $parts);
-    }
-
-    private function resourceExtendsJsonResource(string $resourceFqcn): bool
-    {
-        $file = $this->resolveClassFile($resourceFqcn);
-        if ($file === null) {
-            return false;
-        }
-
-        $stmts = $this->parseFile($file);
-        if ($stmts === null) {
-            return false;
-        }
-
-        $class = $this->finder->findFirstInstanceOf($stmts, Class_::class);
-        if ($class === null || $class->extends === null) {
-            return false;
-        }
-
-        $parent = $class->extends->toString();
-
-        return $parent === 'Illuminate\Http\Resources\Json\JsonResource'
-            || $parent === 'JsonResource'
-            || str_ends_with($parent, 'JsonResource')
-            || str_ends_with($parent, 'ResourceCollection');
-    }
-
-    private function parseResourceToArrayReturn(string $resourceFqcn): array
-    {
-        $file = $this->resolveClassFile($resourceFqcn);
-        if ($file === null) {
-            return ['arrayNode' => null, 'file' => ''];
-        }
-
-        $stmts = $this->parseFile($file);
-        if ($stmts === null) {
-            return ['arrayNode' => null, 'file' => $file];
-        }
-
-        $class = $this->finder->findFirstInstanceOf($stmts, Class_::class);
-        if ($class === null) {
-            return ['arrayNode' => null, 'file' => $file];
-        }
-
-        $toArrayMethod = $this->finder->findFirst($class->stmts ?? [], function (Node $node) {
-            return $node instanceof ClassMethod && $node->name->toString() === 'toArray';
-        });
-
-        if ($toArrayMethod === null) {
-            return ['arrayNode' => null, 'file' => $file];
-        }
-
-        /** @var ClassMethod $toArrayMethod */
-        $returns = $this->finder->findInstanceOf($toArrayMethod->stmts ?? [], Return_::class);
-        foreach ($returns as $return) {
-            if ($return->expr instanceof Array_) {
-                return ['arrayNode' => $return->expr, 'file' => $file];
-            }
-        }
-
-        return ['arrayNode' => null, 'file' => $file];
-    }
-
-    private function resolveModelFromResourceClass(string $resourceFqcn, ActionAst $actionAst): ?string
-    {
-        // 1. Check Resource class docblock for @mixin or @property (FR-009 / US-006)
-        $resourceFile = $this->resolveClassFile($resourceFqcn);
-        if ($resourceFile !== null && is_file($resourceFile)) {
-            $code = file_get_contents($resourceFile);
-            if ($code !== false) {
-                $doc = $this->phpDocParser->parseClassDocblock($code);
-                if (isset($doc['backingModel'])) {
-                    $m = $doc['backingModel'];
-                    if (class_exists($m)) {
-                        return $m;
-                    }
-                    if (class_exists('App\\Models\\'.$m)) {
-                        return 'App\\Models\\'.$m;
-                    }
-                }
-            }
-        }
-
-        $parts = explode('\\', $resourceFqcn);
-        $shortName = end($parts);
-
-        if (str_ends_with($shortName, 'Resource')) {
-            $modelShort = substr($shortName, 0, -strlen('Resource'));
-        } elseif (str_ends_with($shortName, 'Collection')) {
-            $modelShort = substr($shortName, 0, -strlen('Collection'));
-        } else {
-            $modelShort = $shortName;
-        }
-
-        if ($modelShort === '') {
-            return null;
-        }
-
-        $namespaceParts = array_slice($parts, 0, -1);
-        $ns = implode('\\', $namespaceParts);
-        $modelNs = preg_replace('/(Http\\\\)?Resources$/', 'Models', $ns);
-        $candidate = $modelNs.'\\'.$modelShort;
-        if (class_exists($candidate)) {
-            return $candidate;
-        }
-
-        if (isset($actionAst->useImports[$modelShort])) {
-            return $actionAst->useImports[$modelShort];
-        }
-
-        return 'App\\Models\\'.$modelShort;
-    }
-
-    private function resolveClassSource(string $className, ?string $filePath = null): ?string
-    {
-        $file = $filePath ?? $this->resolveClassFile($className);
-        if ($file === null || ! is_file($file)) {
-            return null;
-        }
-
-        try {
-            $code = file_get_contents($file);
-
-            return $code === false ? null : $code;
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
-    private function buildSchemaFromResourceArray(
-        Array_ $arrayNode,
-        string $resourceFile,
-        ?string $modelFqcn,
-        string $tableName,
-        ?DatabaseSchema $schema,
-        array $diagnostics
-    ): array {
-        $properties = [];
-
-        foreach ($arrayNode->items as $item) {
-            if ($item === null) {
-                continue;
-            }
-
-            if ($item->key === null) {
-                $diagnostics[] = new InferenceDiagnostic(
-                    $resourceFile ?: 'unknown',
-                    $item->getLine(),
-                    'Array item without string key in JsonResource::toArray(): skipped'
-                );
-
-                continue;
-            }
-
-            if (! ($item->key instanceof String_)) {
-                $diagnostics[] = new InferenceDiagnostic(
-                    $resourceFile ?: 'unknown',
-                    $item->key->getLine(),
-                    'Non-string field key in JsonResource::toArray(): skipped'
-                );
-
-                continue;
-            }
-
-            $fieldName = $item->key->value;
-            $value = $item->value;
-
-            [$type, $format] = $this->inferFieldTypeFromValue($value, $modelFqcn, $tableName, $schema);
-
-            if ($type === null && $format === null) {
-                $diagnostics[] = new InferenceDiagnostic(
-                    $resourceFile ?: 'unknown',
-                    $item->getLine(),
-                    sprintf('Could not resolve type for JsonResource::toArray() key "%s": marking unresolved', $fieldName)
-                );
-                $type = 'string';
-            }
-
-            $fieldSchema = new Schema;
-            $fieldSchema->type = $type;
-            if ($format !== null) {
-                $fieldSchema->format = $format;
-            }
-
-            $properties[$fieldName] = $fieldSchema;
-        }
-
-        $objectSchema = new Schema;
-        $objectSchema->type = 'object';
-        $objectSchema->properties = $properties;
-
-        return ['schema' => $objectSchema, 'diagnostics' => $diagnostics];
-    }
-
-    private function inferFieldTypeFromValue(
-        Node $value,
-        ?string $modelFqcn,
-        string $tableName,
-        ?DatabaseSchema $schema
-    ): array {
-        $propertyName = null;
-
-        if ($value instanceof PropertyFetch) {
-            $var = $value->var;
-            $prop = $value->name;
-
-            if ($var instanceof Variable && $var->name === 'this') {
-                $propertyName = is_string($prop) ? $prop : ($prop instanceof Identifier ? $prop->toString() : null);
-            } elseif ($var instanceof PropertyFetch
-                && $var->var instanceof Variable && $var->var->name === 'this'
-                && $var->name instanceof Identifier && $var->name->toString() === 'resource'
-            ) {
-                $propertyName = is_string($prop) ? $prop : ($prop instanceof Identifier ? $prop->toString() : null);
-            }
-        }
-
-        if ($propertyName === null) {
-            return [null, null];
-        }
-
-        if ($schema !== null) {
-            $table = $schema->tables[$tableName] ?? null;
-            if ($table === null) {
-                foreach ($schema->tables as $k => $t) {
-                    if ($t->name === $tableName || str_ends_with($k, '.'.$tableName)) {
-                        $table = $t;
-                        break;
-                    }
-                }
-            }
-
-            if ($table !== null && isset($table->columns[$propertyName])) {
-                $col = $table->columns[$propertyName];
-
-                return $this->columnTypeToOpenApi($col->type);
-            }
-        }
-
-        // FR-005 / TASK-007: Consult schema_overrides escape hatch before falling back to string/unresolved
-        $overrideKey = $tableName.'.'.$propertyName;
-        if (isset($this->schemaOverrides[$overrideKey])) {
-            return [$this->schemaOverrides[$overrideKey], null];
-        }
-
-        return [null, null];
-    }
-
-    private function resolveClassFile(string $className): ?string
-    {
-        if (class_exists($className)) {
-            $file = (new \ReflectionClass($className))->getFileName();
-            if ($file !== false && is_file($file)) {
-                return $file;
-            }
-        }
-
-        $relativePath = str_replace('\\', '/', $className).'.php';
-
-        $possiblePaths = [
-            __DIR__.'/../../../../src/'.$relativePath,
-            __DIR__.'/../../../../app/'.$relativePath,
-            $relativePath,
-        ];
-
-        foreach ($possiblePaths as $path) {
-            if (is_file($path)) {
-                return realpath($path);
-            }
-        }
-
-        return null;
-    }
-
-    private function parseFile(string $filePath): ?array
-    {
-        try {
-            $code = file_get_contents($filePath);
-            if ($code === false) {
-                return null;
-            }
-
-            return $this->parser->parse($code);
-        } catch (\Throwable) {
-            return null;
-        }
     }
 }

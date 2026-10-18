@@ -37,4 +37,21 @@ final class BasicAuthDocsTest extends TestCase
             'Authorization' => 'Basic '.base64_encode('admin:wrong'),
         ])->get('/docs/api')->assertStatus(401);
     }
+
+    public function test_blank_credentials_leave_docs_public(): void
+    {
+        config(['geni.docs_auth.username' => '', 'geni.docs_auth.password' => '']);
+
+        $this->get('/docs/api')->assertOk();
+    }
+
+    public function test_blank_password_fails_closed_instead_of_matching_empty_input(): void
+    {
+        config(['geni.docs_auth.password' => '']);
+
+        $this->get('/docs/api')->assertStatus(401);
+        $this->withHeaders([
+            'Authorization' => 'Basic '.base64_encode('admin:'),
+        ])->get('/docs/api')->assertStatus(401);
+    }
 }

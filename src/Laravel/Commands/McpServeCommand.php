@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Geni\Laravel\Commands;
 
+use Geni\Laravel\Commands\Concerns\ResolvesApiOption;
 use Geni\Laravel\Controllers\DocumentationController;
 use Geni\Laravel\Mcp\McpProtocolHandler;
 use Illuminate\Console\Command;
@@ -11,6 +12,8 @@ use Throwable;
 
 final class McpServeCommand extends Command
 {
+    use ResolvesApiOption;
+
     /**
      * The name and signature of the console command.
      *
@@ -30,19 +33,17 @@ final class McpServeCommand extends Command
 
     public function handle(): int
     {
-        $apiName = $this->option('api') ?: 'default';
+        $apiName = $this->resolveApiOption();
+        if ($apiName === null) {
+            return self::FAILURE;
+        }
+
         $baseUrl = $this->option('base-url') ?: null;
         $timeout = (int) ($this->option('timeout') ?: 15);
 
         /** @var DocumentationController $controller */
         $controller = app(DocumentationController::class);
         $document = $controller->generateDocument($apiName);
-
-        $mcpConfig = config('geni.mcp', []);
-        if ($baseUrl !== null) {
-            $mcpConfig['execution']['base_url'] = $baseUrl;
-        }
-        $mcpConfig['execution']['timeout'] = $timeout;
 
         $handler = new McpProtocolHandler;
 

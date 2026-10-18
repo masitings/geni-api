@@ -21,6 +21,21 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
 
 class GeniServiceProvider extends PackageServiceProvider
 {
+    /**
+     * CSRF middleware removed from the MCP JSON-RPC routes (they may sit in
+     * the `web` group in form-auth mode or when `geni.middleware` adds it).
+     * JSON-RPC clients cannot send a CSRF token; the controller instead
+     * requires an application/json body, which a cross-site form cannot send
+     * without a CORS preflight. PreventRequestForgery is Laravel 13's base
+     * class; VerifyCsrfToken covers its subclasses on Laravel 10-12.
+     *
+     * @var list<string>
+     */
+    private const CSRF_MIDDLEWARE = [
+        'Illuminate\Foundation\Http\Middleware\PreventRequestForgery',
+        'Illuminate\Foundation\Http\Middleware\VerifyCsrfToken',
+    ];
+
     public function configurePackage(Package $package): void
     {
         $package
@@ -37,6 +52,11 @@ class GeniServiceProvider extends PackageServiceProvider
                 McpServeCommand::class,
             ])
             ->hasViews();
+    }
+
+    public function packageRegistered(): void
+    {
+        $this->app->singleton(GeniConfigurationRegistry::class);
     }
 
     public function packageBooted(): void
@@ -57,7 +77,7 @@ class GeniServiceProvider extends PackageServiceProvider
         }
 
         $authMode = config('geni.docs_auth.mode', 'basic');
-        $hasCredentials = config('geni.docs_auth.username') !== null && config('geni.docs_auth.password') !== null;
+        $hasCredentials = DocsCredentials::configured();
 
         $uiPath = config('geni.docs_ui_path', 'docs/api');
         $jsonPath = config('geni.docs_json_path', 'docs/api.json');
@@ -83,7 +103,8 @@ class GeniServiceProvider extends PackageServiceProvider
                 $router->get($jsonPath, '\Geni\Laravel\Controllers\DocumentationController@document');
                 $router->get($uiPath, '\Geni\Laravel\Controllers\DocumentationController@ui');
                 if ($mcpPath !== null && config('geni.mcp.enabled', true)) {
-                    $router->match(['GET', 'POST'], $mcpPath, '\Geni\Laravel\Controllers\DocumentationController@mcp');
+                    $router->match(['GET', 'POST'], $mcpPath, '\Geni\Laravel\Controllers\DocumentationController@mcp')
+                        ->withoutMiddleware(self::CSRF_MIDDLEWARE);
                 }
             });
 
@@ -98,7 +119,8 @@ class GeniServiceProvider extends PackageServiceProvider
                         $router->get($apiJsonPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@document', 'api' => $name]);
                         $router->get($apiUiPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@ui', 'api' => $name]);
                         if (config('geni.mcp.enabled', true)) {
-                            $router->match(['GET', 'POST'], $apiMcpPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@mcp', 'api' => $name]);
+                            $router->match(['GET', 'POST'], $apiMcpPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@mcp', 'api' => $name])
+                                ->withoutMiddleware(self::CSRF_MIDDLEWARE);
                         }
                     }
                 });
@@ -118,7 +140,8 @@ class GeniServiceProvider extends PackageServiceProvider
                 $router->get($jsonPath, '\Geni\Laravel\Controllers\DocumentationController@document');
                 $router->get($uiPath, '\Geni\Laravel\Controllers\DocumentationController@ui');
                 if ($mcpPath !== null && config('geni.mcp.enabled', true)) {
-                    $router->match(['GET', 'POST'], $mcpPath, '\Geni\Laravel\Controllers\DocumentationController@mcp');
+                    $router->match(['GET', 'POST'], $mcpPath, '\Geni\Laravel\Controllers\DocumentationController@mcp')
+                        ->withoutMiddleware(self::CSRF_MIDDLEWARE);
                 }
             });
 
@@ -133,7 +156,8 @@ class GeniServiceProvider extends PackageServiceProvider
                     $router->get($apiJsonPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@document', 'api' => $name]);
                     $router->get($apiUiPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@ui', 'api' => $name]);
                     if (config('geni.mcp.enabled', true)) {
-                        $router->match(['GET', 'POST'], $apiMcpPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@mcp', 'api' => $name]);
+                        $router->match(['GET', 'POST'], $apiMcpPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@mcp', 'api' => $name])
+                            ->withoutMiddleware(self::CSRF_MIDDLEWARE);
                     }
                 }
             });

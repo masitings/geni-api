@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class DocsFormAuthTest extends TestCase
@@ -127,5 +128,40 @@ class DocsFormAuthTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('openapi', '3.1.0');
+    }
+
+    public function test_logout_rotates_session_id_and_csrf_token(): void
+    {
+        $this->withSession(['geni_docs_authenticated' => true]);
+        $this->get('/docs/api');
+        $sessionId = session()->getId();
+        $token = session()->token();
+
+        $this->post('/docs/api/logout');
+
+        expect(session()->getId())->not->toBe($sessionId);
+        expect(session()->token())->not->toBe($token);
+    }
+
+    public function test_mcp_routes_skip_csrf_so_json_rpc_clients_can_post(): void
+    {
+        $routes = app('router')->getRoutes();
+
+        foreach (['docs/api/mcp', 'docs/api/v1/mcp'] as $uri) {
+            $route = $routes->match(Request::create('/'.$uri, 'POST'));
+
+            expect($route->excludedMiddleware())
+                ->toContain('Illuminate\Foundation\Http\Middleware\VerifyCsrfToken')
+                ->toContain('Illuminate\Foundation\Http\Middleware\PreventRequestForgery');
+        }
+    }
+
+    public function test_authenticated_session_can_post_json_rpc_to_mcp(): void
+    {
+        $this->withSession(['geni_docs_authenticated' => true]);
+
+        $this->postJson('/docs/api/mcp', ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'ping'])
+            ->assertOk()
+            ->assertJsonPath('id', 1);
     }
 }

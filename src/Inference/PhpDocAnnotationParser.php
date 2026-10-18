@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Geni\Inference;
 
+use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocNode;
+use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocTextNode;
 use PHPStan\PhpDocParser\Lexer\Lexer;
 use PHPStan\PhpDocParser\Parser\ConstExprParser;
 use PHPStan\PhpDocParser\Parser\PhpDocParser;
@@ -39,6 +41,8 @@ final class PhpDocAnnotationParser
      * @return array{
      *     response?: array{status: int, type: string, description: ?string},
      *     description?: string,
+     *     summary?: string,
+     *     docDescription?: string,
      *     operationId?: string,
      *     requestMediaType?: string,
      *     deprecated?: bool,
@@ -67,6 +71,14 @@ final class PhpDocAnnotationParser
             $phpDocNode = $this->parser->parse($tokens);
         } catch (\Throwable) {
             return $result;
+        }
+
+        [$summary, $description] = $this->extractSummaryAndDescription($phpDocNode);
+        if ($summary !== '') {
+            $result['summary'] = $summary;
+        }
+        if ($description !== '') {
+            $result['docDescription'] = $description;
         }
 
         $pendingStatus = null;
@@ -345,6 +357,23 @@ final class PhpDocAnnotationParser
         }
 
         return $result;
+    }
+
+    /**
+     * Split the free text of a docblock the way Scramble does: the first
+     * paragraph is the summary (trailing periods removed), everything after
+     * the first blank line is the description.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function extractSummaryAndDescription(PhpDocNode $phpDocNode): array
+    {
+        $textNodes = array_filter($phpDocNode->children, fn ($node) => $node instanceof PhpDocTextNode);
+        $text = trim(str_replace("\r\n", "\n", implode("\n", array_map(fn (PhpDocTextNode $node) => $node->text, $textNodes))));
+
+        $paragraphs = explode("\n\n", $text, 2);
+
+        return [rtrim(trim($paragraphs[0]), '.'), trim($paragraphs[1] ?? '')];
     }
 
     /**

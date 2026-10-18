@@ -52,8 +52,111 @@ final class Schema implements JsonSerializable
     /** @var list<string>|null */
     public $required = null;
 
+    /** @var list<Schema>|null */
+    public ?array $anyOf = null;
+
     /** @var array<string, mixed> */
     public array $extensions = [];
+
+    /**
+     * Build a schema that only references a component.
+     */
+    public static function ref(string $componentName): self
+    {
+        $schema = new self;
+        $schema->ref = '#/components/schemas/'.$componentName;
+
+        return $schema;
+    }
+
+    /**
+     * Build a schema with a single type (and optional format).
+     *
+     * @param  string|list<string>  $type
+     */
+    public static function ofType($type, ?string $format = null): self
+    {
+        $schema = new self;
+        $schema->type = $type;
+        $schema->format = $format;
+
+        return $schema;
+    }
+
+    /**
+     * Return a copy that also accepts null: `["string", "null"]` for typed
+     * schemas, `anyOf: [..., {type: null}]` for references and unions.
+     */
+    public function nullable(): self
+    {
+        $copy = clone $this;
+
+        if ($copy->ref !== null || $copy->anyOf !== null) {
+            if ($copy->anyOf !== null) {
+                foreach ($copy->anyOf as $option) {
+                    if ($option->ref === null && $option->type === 'null') {
+                        return $copy;
+                    }
+                }
+            }
+
+            $union = new self;
+            $union->description = $copy->description;
+            $copy->description = null;
+            $union->anyOf = array_merge($copy->anyOf ?? [$copy], [self::ofType('null')]);
+
+            return $union;
+        }
+
+        if ($copy->type === null) {
+            return $copy;
+        }
+
+        $types = is_array($copy->type) ? $copy->type : [$copy->type];
+        if (! in_array('null', $types, true)) {
+            $types[] = 'null';
+        }
+        $copy->type = $types;
+
+        return $copy;
+    }
+
+    /**
+     * Whether the schema accepts null.
+     */
+    public function isNullable(): bool
+    {
+        if (is_array($this->type) && in_array('null', $this->type, true)) {
+            return true;
+        }
+
+        foreach ($this->anyOf ?? [] as $option) {
+            if ($option->ref === null && $option->type === 'null') {
+                return true;
+            }
+        }
+
+        return $this->type === 'null';
+    }
+
+    public function __clone()
+    {
+        if ($this->items !== null) {
+            $this->items = clone $this->items;
+        }
+
+        if (is_array($this->properties)) {
+            foreach ($this->properties as $name => $property) {
+                if ($property instanceof self) {
+                    $this->properties[$name] = clone $property;
+                }
+            }
+        }
+
+        if ($this->anyOf !== null) {
+            $this->anyOf = array_map(fn (self $option) => clone $option, $this->anyOf);
+        }
+    }
 
     public function jsonSerialize(): array
     {
@@ -67,6 +170,15 @@ final class Schema implements JsonSerializable
             }
 
             return $result;
+        }
+
+        if ($this->anyOf !== null) {
+            if ($this->description !== null) {
+                $result['description'] = $this->description;
+            }
+            $result['anyOf'] = array_map(fn (self $option) => $option->jsonSerialize(), $this->anyOf);
+
+            return array_merge($result, $this->extensions);
         }
 
         if ($this->title !== null) {

@@ -51,12 +51,6 @@ final class McpToolExecutor
         $baseUrl = $config['base_url'] ?? config('geni.mcp.execution.base_url') ?? config('app.url') ?? url('/');
         $baseUrl = rtrim((string) $baseUrl, '/');
 
-        // If baseUrl is http://... and local environment uses https:// (like Laravel Herd), preserve scheme
-        if (str_starts_with($baseUrl, 'http://') && ! str_contains($baseUrl, 'localhost') && ! str_contains($baseUrl, '127.0.0.1')) {
-            // Check if https responds or prefer configured scheme
-            $baseUrl = preg_replace('#^http://#', 'https://', $baseUrl) ?? $baseUrl;
-        }
-
         $url = $baseUrl.(str_starts_with($path, '/') ? $path : '/'.$path);
 
         // 3. Resolve Query, Header, & Body Parameters

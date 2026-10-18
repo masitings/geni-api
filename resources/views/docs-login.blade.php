@@ -23,7 +23,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS Play CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ config('geni.renderers.blade.tailwind_cdn_url') ?? 'https://cdn.tailwindcss.com/3.4.17' }}"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -39,7 +39,7 @@
     </script>
 
     <!-- Alpine.js CDN -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="{{ config('geni.renderers.blade.alpine_cdn_url') ?? 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js' }}"></script>
 
     <style>
         [x-cloak] { display: none !important; }

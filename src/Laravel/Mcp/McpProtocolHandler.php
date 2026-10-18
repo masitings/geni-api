@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Geni\Laravel\Mcp;
 
+use Composer\InstalledVersions;
 use Geni\Inference\Document\OpenApiDocument;
 use Throwable;
 
@@ -19,6 +20,15 @@ use Throwable;
  */
 final class McpProtocolHandler
 {
+    /**
+     * MCP protocol revisions this server speaks, newest first. A client asking
+     * for an unknown revision is answered with the newest one, per the spec's
+     * version negotiation.
+     *
+     * @var list<string>
+     */
+    private const SUPPORTED_PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
+
     private McpManifestGenerator $generator;
 
     private McpToolExecutor $executor;
@@ -42,24 +52,32 @@ final class McpProtocolHandler
     {
         $id = $payload['id'] ?? null;
         $method = $payload['method'] ?? null;
-        $params = $payload['params'] ?? [];
+        $params = is_array($payload['params'] ?? null) ? $payload['params'] : [];
 
         // Validate JSON-RPC 2.0 version
         if (($payload['jsonrpc'] ?? '') !== '2.0' || ! is_string($method)) {
             return $this->errorResponse($id, -32600, 'Invalid Request');
         }
 
+        // JSON-RPC notifications carry no id and must never receive a response.
+        if (! array_key_exists('id', $payload)) {
+            return null;
+        }
+
         try {
             return match ($method) {
                 'initialize' => $this->handleInitialize($id, $params),
-                'notifications/initialized' => null, // Notification, no response
                 'ping' => $this->successResponse($id, (object) []),
                 'tools/list' => $this->handleToolsList($id, $document, $config),
-                'tools/call' => $this->handleToolsCall($id, $params, $document, $config),
+                'tools/call' => ($config['allow_tools_call'] ?? true)
+                    ? $this->handleToolsCall($id, $params, $document, $config)
+                    : $this->errorResponse($id, -32601, 'tools/call is disabled over HTTP. Set geni.mcp.http_execution to true or use php artisan geni:mcp:serve.'),
                 default => $this->errorResponse($id, -32601, sprintf('Method not found: %s', $method)),
             };
         } catch (Throwable $e) {
-            return $this->errorResponse($id, -32603, sprintf('Internal error: %s', $e->getMessage()));
+            report($e);
+
+            return $this->errorResponse($id, -32603, 'Internal error');
         }
     }
 
@@ -69,16 +87,19 @@ final class McpProtocolHandler
      */
     private function handleInitialize(mixed $id, array $params): array
     {
-        $clientProtocolVersion = $params['protocolVersion'] ?? '2024-11-05';
+        $requestedVersion = $params['protocolVersion'] ?? null;
+        $protocolVersion = in_array($requestedVersion, self::SUPPORTED_PROTOCOL_VERSIONS, true)
+            ? $requestedVersion
+            : self::SUPPORTED_PROTOCOL_VERSIONS[0];
 
         return $this->successResponse($id, [
-            'protocolVersion' => $clientProtocolVersion,
+            'protocolVersion' => $protocolVersion,
             'capabilities' => [
                 'tools' => (object) [],
             ],
             'serverInfo' => [
                 'name' => 'geni-mcp',
-                'version' => '1.0.0',
+                'version' => $this->packageVersion(),
             ],
         ]);
     }
@@ -142,6 +163,15 @@ final class McpProtocolHandler
         $callResult = $this->executor->execute($targetTool, $arguments, $execConfig);
 
         return $this->successResponse($id, $callResult);
+    }
+
+    private function packageVersion(): string
+    {
+        if (class_exists(InstalledVersions::class) && InstalledVersions::isInstalled('masitings/geni-api')) {
+            return ltrim((string) InstalledVersions::getPrettyVersion('masitings/geni-api'), 'v');
+        }
+
+        return 'dev';
     }
 
     /**

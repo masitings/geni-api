@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Geni\Laravel\Middleware;
 
 use Closure;
+use Geni\Laravel\DocsCredentials;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -17,17 +18,11 @@ final class BasicAuthDocs
 {
     public function handle(Request $request, Closure $next): mixed
     {
-        $username = config('geni.docs_auth.username');
-        $password = config('geni.docs_auth.password');
-
-        if ($username === null || $password === null) {
+        if (! DocsCredentials::configured()) {
             return $next($request);
         }
 
-        $providedUser = $request->getUser();
-        $providedPass = $request->getPassword();
-
-        if (hash_equals($username, (string) $providedUser) && hash_equals($password, (string) $providedPass)) {
+        if (DocsCredentials::matches($request->getUser(), $request->getPassword())) {
             return $next($request);
         }
 

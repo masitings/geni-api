@@ -55,6 +55,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Servers
+    |--------------------------------------------------------------------------
+    |
+    | OpenAPI `servers`, as description => URL. Relative URLs go through url().
+    | Paths in the document stay absolute (e.g. /api/users), so point servers
+    | at the host, not the API prefix. Can also be set per entry in `apis`.
+    |
+    | Example: ['Production' => 'https://api.example.com', 'Local' => '/']
+    |
+    */
+
+    'servers' => null,
+
+    /*
+    |--------------------------------------------------------------------------
     | Route Resolver Closure
     |--------------------------------------------------------------------------
     |
@@ -86,7 +101,9 @@ return [
     |
     | The renderer implementation used for the docs UI route.
     | Supported built-in options: 'blade' (default standalone portal),
-    | or a custom class name implementing Geni\Laravel\Renderer.
+    | 'scalar' (Scalar API Reference), 'elements' (Stoplight Elements, as in
+    | Scramble), or a custom class name implementing Geni\Laravel\Renderer.
+    | Per API: set `renderer` inside an entry of `apis`.
     |
     */
 
@@ -95,9 +112,27 @@ return [
     'renderers' => [
         'blade' => [
             'dark_mode' => true,
-            'tailwind_cdn_url' => 'https://cdn.tailwindcss.com',
-            'alpine_cdn_url' => 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js',
+            'tailwind_cdn_url' => 'https://cdn.tailwindcss.com/3.4.17',
+            'alpine_cdn_url' => 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js',
             'custom_css' => null,
+        ],
+
+        // 'renderer' => 'scalar': Scalar API Reference. `configuration` is passed to
+        // Scalar.createApiReference() as-is (theme, layout, hideModels, ...).
+        'scalar' => [
+            'script_url' => null, // defaults to a pinned jsDelivr build
+            'configuration' => [
+                'theme' => 'laravel',
+            ],
+        ],
+
+        // 'renderer' => 'elements': Stoplight Elements (Scramble's default UI).
+        'elements' => [
+            'script_url' => null,
+            'stylesheet_url' => null,
+            'layout' => 'sidebar', // 'sidebar' | 'stacked'
+            'hide_try_it' => false,
+            'theme' => 'light', // 'light' | 'dark'
         ],
     ],
 
@@ -133,9 +168,13 @@ return [
     | Restrict to Local Environment
     |--------------------------------------------------------------------------
     |
-    | Docs routes 404 outside the 'local' environment by default. Set to
-    | false to allow docs in other environments (e.g. staging), relying on
-    | `docs_auth` for access control instead.
+    | Docs routes 404 outside the 'local' environment by default. Define a
+    | `viewApiDocs` gate (as with Scramble) to decide access elsewhere:
+    |
+    |     Gate::define('viewApiDocs', fn (?User $user) => $user?->isAdmin());
+    |
+    | User-based gates need a session, so add 'web' to `middleware` below.
+    | Set this to false to skip the check entirely and rely on `docs_auth`.
     |
     */
 
@@ -307,6 +346,14 @@ return [
         'nest_body' => false,     // Merge body properties to root object vs nesting in 'body'
 
         /*
+        | Allow `tools/call` over the HTTP endpoint (`POST docs/api/mcp`). Off by
+        | default: when on, anyone who can open the docs can run any documented
+        | endpoint with the credentials below. `geni:mcp:serve` (stdio) is not
+        | affected by this flag.
+        */
+        'http_execution' => (bool) env('GENI_MCP_HTTP_EXECUTION', false),
+
+        /*
         |--------------------------------------------------------------------------
         | Live Execution (tools/call) Configuration
         |--------------------------------------------------------------------------
@@ -332,6 +379,19 @@ return [
             'allow_caller_headers' => false,
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Extensions
+    |--------------------------------------------------------------------------
+    |
+    | Classes implementing Geni\Laravel\Contracts\DocumentTransformer,
+    | Geni\Laravel\Contracts\OperationTransformer, Geni\Inference\RuleTransformer
+    | or Geni\Inference\ExceptionToResponse, applied to every API (add an
+    | `extensions` list inside an entry of `apis` for one API only). The same
+    | can be registered in code with Geni::configure() in a service provider.
+    |
+    */
 
     'extensions' => [],
 ];

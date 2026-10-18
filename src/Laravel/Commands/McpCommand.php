@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Geni\Laravel\Commands;
 
+use Geni\Laravel\Commands\Concerns\ResolvesApiOption;
 use Geni\Laravel\Controllers\DocumentationController;
 use Geni\Laravel\Mcp\McpManifestGenerator;
 use Illuminate\Console\Command;
 
 final class McpCommand extends Command
 {
+    use ResolvesApiOption;
+
     /**
      * The name and signature of the console command.
      *
@@ -30,7 +33,11 @@ final class McpCommand extends Command
 
     public function handle(): int
     {
-        $apiName = $this->option('api') ?: 'default';
+        $apiName = $this->resolveApiOption();
+        if ($apiName === null) {
+            return self::FAILURE;
+        }
+
         $format = $this->option('format') ?: 'manifest';
         $path = $this->option('path') ?: 'mcp-manifest.json';
         $baseUrl = $this->option('base-url') ?: url('/');

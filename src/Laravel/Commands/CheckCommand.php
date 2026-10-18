@@ -4,17 +4,13 @@ declare(strict_types=1);
 
 namespace Geni\Laravel\Commands;
 
-use Geni\Inference\DocumentAssembler;
-use Geni\Laravel\Commands\Concerns\BuildsInfoOptions;
-use Geni\Laravel\Commands\Concerns\BuildsSecurityConfig;
-use Geni\Laravel\RouteDiscoverer;
-use Geni\SchemaReader\SchemaReader;
+use Geni\Laravel\Commands\Concerns\ResolvesApiOption;
+use Geni\Laravel\DocumentGenerator;
 use Illuminate\Console\Command;
 
 final class CheckCommand extends Command
 {
-    use BuildsInfoOptions;
-    use BuildsSecurityConfig;
+    use ResolvesApiOption;
 
     protected $signature = 'geni:check
                             {--api=default : The API configuration name to check}
@@ -24,7 +20,11 @@ final class CheckCommand extends Command
 
     public function handle(): int
     {
-        $apiName = $this->option('api') ?: 'default';
+        $apiName = $this->resolveApiOption();
+        if ($apiName === null) {
+            return self::FAILURE;
+        }
+
         $path = $this->option('path') ?: 'openapi.json';
         $resolvedPath = file_exists($path) || str_starts_with($path, '/') ? $path : base_path($path);
         $filePath = file_exists($resolvedPath) ? realpath($resolvedPath) : $resolvedPath;
@@ -44,34 +44,7 @@ final class CheckCommand extends Command
             return self::FAILURE;
         }
 
-        // Generate fresh document
-        $routes = RouteDiscoverer::discover();
-        $plainRoutes = array_map(function ($route) {
-            return [
-                'uri' => $route->uri,
-                'methods' => $route->methods,
-                'action' => $route->action,
-                'middleware' => $route->middleware,
-                'name' => $route->name,
-            ];
-        }, $routes);
-
-        $migrationPaths = config('geni.migration_paths', [database_path('migrations')]);
-        $dbSchema = null;
-        if (class_exists(SchemaReader::class)) {
-            $schemaReader = new SchemaReader;
-            $dbSchema = $schemaReader->read($migrationPaths);
-        }
-
-        $assembler = new DocumentAssembler;
-        $document = $assembler->assemble(
-            routes: $plainRoutes,
-            infoOptions: $this->buildInfoOptions(),
-            dbSchema: $dbSchema,
-            schemaOverrides: config('geni.schema_overrides', []),
-            securityConfig: $this->buildSecurityConfig(),
-            apiName: $apiName
-        );
+        $document = app(DocumentGenerator::class)->generate($apiName);
 
         $generatedJson = json_encode($document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         $generatedData = json_decode((string) $generatedJson, true);

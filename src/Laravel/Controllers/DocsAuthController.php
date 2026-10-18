@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Geni\Laravel\Controllers;
 
+use Geni\Laravel\DocsCredentials;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -54,13 +55,10 @@ final class DocsAuthController extends Controller
                 ->withErrors(['credentials' => 'Too many login attempts. Please try again in a minute.']);
         }
 
-        $expectedUser = (string) config('geni.docs_auth.username');
-        $expectedPass = (string) config('geni.docs_auth.password');
+        $username = $request->input('username');
+        $password = $request->input('password');
 
-        $user = (string) $request->input('username', '');
-        $pass = (string) $request->input('password', '');
-
-        if ($user !== '' && $pass !== '' && hash_equals($expectedUser, $user) && hash_equals($expectedPass, $pass)) {
+        if (DocsCredentials::matches(is_string($username) ? $username : null, is_string($password) ? $password : null)) {
             RateLimiter::clear($throttleKey);
             $request->session()->put('geni_docs_authenticated', true);
             $request->session()->regenerate();
@@ -83,6 +81,8 @@ final class DocsAuthController extends Controller
         $uiPath = config('geni.docs_ui_path', 'docs/api');
 
         $request->session()->forget('geni_docs_authenticated');
+        $request->session()->regenerate();
+        $request->session()->regenerateToken();
 
         return redirect(url($uiPath.'/login'));
     }

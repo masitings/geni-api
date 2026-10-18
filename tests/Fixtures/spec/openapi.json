@@ -7,23 +7,32 @@
     "paths": {
         "/api/posts": {
             "get": {
-                "summary": "posts.index",
+                "summary": "GET /api/posts - list all posts",
                 "responses": {
                     "200": {
                         "description": "Successful response"
                     }
                 },
+                "operationId": "posts.index",
                 "security": []
             },
             "post": {
-                "summary": "posts.store",
+                "summary": "POST /api/posts - create a new post\nUses literal validate() rules",
                 "responses": {
-                    "200": {
-                        "description": "Successful response",
+                    "201": {
+                        "description": "`PostResource`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/PostResource"
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PostResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
                                 }
                             }
                         }
@@ -48,6 +57,7 @@
                         }
                     }
                 },
+                "operationId": "posts.store",
                 "security": [],
                 "requestBody": {
                     "required": true,
@@ -80,28 +90,27 @@
                             }
                         }
                     }
-                },
-                "x-geni-unresolved": {
-                    "x-geni-unresolved": [
-                        {
-                            "file": "tests/Fixtures/App/Http/Resources/PostResource.php",
-                            "line": 23,
-                            "reason": "Could not resolve type for JsonResource::toArray() key \"published\": marking unresolved"
-                        }
-                    ]
                 }
             }
         },
         "/api/posts/{post}": {
             "get": {
-                "summary": "posts.show",
+                "summary": "GET /api/posts/{post} - show a single post (route-model bound, returns JsonResource)",
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "`PostResource`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/PostResource"
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PostResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
                                 }
                             }
                         }
@@ -126,6 +135,7 @@
                         }
                     }
                 },
+                "operationId": "posts.show",
                 "security": [],
                 "parameters": [
                     {
@@ -136,26 +146,25 @@
                             "type": "integer"
                         }
                     }
-                ],
-                "x-geni-unresolved": {
-                    "x-geni-unresolved": [
-                        {
-                            "file": "tests/Fixtures/App/Http/Resources/PostResource.php",
-                            "line": 23,
-                            "reason": "Could not resolve type for JsonResource::toArray() key \"published\": marking unresolved"
-                        }
-                    ]
-                }
+                ]
             },
             "put": {
-                "summary": "posts.update",
+                "summary": "PUT /api/posts/{post} - update a post",
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "`PostResource`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/PostResource"
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PostResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
                                 }
                             }
                         }
@@ -199,6 +208,7 @@
                         }
                     }
                 },
+                "operationId": "posts.update",
                 "security": [],
                 "parameters": [
                     {
@@ -234,19 +244,10 @@
                             }
                         }
                     }
-                },
-                "x-geni-unresolved": {
-                    "x-geni-unresolved": [
-                        {
-                            "file": "tests/Fixtures/App/Http/Resources/PostResource.php",
-                            "line": 23,
-                            "reason": "Could not resolve type for JsonResource::toArray() key \"published\": marking unresolved"
-                        }
-                    ]
                 }
             },
             "delete": {
-                "summary": "posts.destroy",
+                "summary": "DELETE /api/posts/{post} - delete a post",
                 "responses": {
                     "200": {
                         "description": "Successful response"
@@ -271,6 +272,7 @@
                         }
                     }
                 },
+                "operationId": "posts.destroy",
                 "security": [],
                 "parameters": [
                     {
@@ -297,12 +299,21 @@
                         "type": "string"
                     },
                     "body": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "published": {
-                        "type": "string"
+                        "type": "boolean"
                     }
-                }
+                },
+                "required": [
+                    "id",
+                    "title",
+                    "body",
+                    "published"
+                ]
             }
         }
     }

@@ -35,6 +35,9 @@ final class Operation implements JsonSerializable
 
     public ?string $operationId = null;
 
+    /** True when operationId was derived from the route rather than set explicitly. */
+    public bool $operationIdGenerated = false;
+
     public ?bool $deprecated = null;
 
     /** @var list<array<string, list<string>>>|null */
@@ -60,7 +63,9 @@ final class Operation implements JsonSerializable
     {
         $responses = $this->responses;
 
-        if (! isset($responses['200'])) {
+        $hasSuccessResponse = array_filter(array_keys($responses), fn ($status) => str_starts_with((string) $status, '2')) !== [];
+
+        if (! $hasSuccessResponse) {
             $responses['200'] = $this->response !== null
                 ? [
                     'description' => $this->response['description'],
@@ -108,8 +113,8 @@ final class Operation implements JsonSerializable
             $result['requestBody'] = $this->requestBody->jsonSerialize();
         }
 
-        if ($this->extensions !== []) {
-            $result['x-geni-unresolved'] = $this->extensions;
+        foreach ($this->extensions as $key => $value) {
+            $result[str_starts_with((string) $key, 'x-') ? $key : 'x-'.$key] = $value;
         }
 
         return $result;

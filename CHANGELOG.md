@@ -4,6 +4,79 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-18
+
+This release brings the generated documents close to what Scramble produces, fixes the security issues found in a review of 2.0.1, and is tested on Laravel 10, 11, 12 and 13.
+
+### Upgrading from 2.x
+
+1. **MCP over HTTP:** `tools/call` on `POST docs/api/mcp` is now disabled. To keep it, set `GENI_MCP_HTTP_EXECUTION=true` (or `geni.mcp.http_execution`). If you published `config/geni.php`, add `'http_execution' => (bool) env('GENI_MCP_HTTP_EXECUTION', false),` to the `mcp` block. MCP clients must send `Content-Type: application/json`. `geni:mcp:serve` is unaffected.
+2. **Committed specs:** resource responses are now wrapped in `data`, paginated collections use `{data, links, meta}`, create endpoints are `201`, and every operation has an `operationId`. Regenerate every spec checked by `geni:check`: `php artisan geni:export --path=openapi.json` (plus `--api=` for each named API).
+3. **Docs access outside `local`:** define a `viewApiDocs` gate to open the docs there (403 when it denies). Without a gate nothing changes (404).
+4. **Docs credentials:** blank `GENI_DOCS_USERNAME` / `GENI_DOCS_PASSWORD` now mean "no credentials gate"; setting only one of them locks the docs. Make sure both are set if you rely on the gate.
+5. **Unknown names:** `?api=` values and `--api` options that are not `default` or a key of `geni.apis` now return 404 / fail instead of silently using the default document.
+6. **Custom code reading the document:** operation extensions are now top-level keys (`x-unauthenticated`, `x-api`, `x-geni-unresolved`) instead of being nested under `x-geni-unresolved`; resource schemas list `required` keys and may use `anyOf` / `const`.
+
+### Added
+
+- **`viewApiDocs` gate** (Scramble's convention): outside `local`, docs are allowed when the gate passes, 403 when it denies, and still 404 when no gate is defined. The gate receives the authenticated user (add `web` to `geni.middleware` for session users) or null.
+- **Scalar and Stoplight Elements renderers**: `'renderer' => 'scalar'` or `'elements'` (globally or per API), loading pinned CDN builds (`@scalar/api-reference@1.72.3`, `@stoplight/elements@9.0.25`), with `renderers.scalar.configuration` passed to Scalar as-is.
+- **Markdown descriptions** in the built-in portal (API overview, operation and response descriptions), rendered by a small escaping-first renderer: paragraphs, lists, headings, fenced code, inline code, bold, italic and http(s)/relative links; raw HTML stays text.
+- **Response status codes**: a resource wrapping a model that was just created (`Model::create()`, `->create()` on a relation, `new Model` + `->save()`) is documented as `201`, like Laravel sends it; `->setStatusCode(N)` and `response()->json($data, N)` use `N`.
+
+- **Extension API.** `Geni::configure($api = 'default')` with `withDocumentTransformers()`, `afterOpenApiGenerated()`, `withOperationTransformers()`, `withRuleTransformers()` and `withExceptionResponses()`, accepting instances, class names or closures. Registrations for `default` also apply to every named API. The previously unused `geni.extensions` config key (and `geni.apis.{name}.extensions`) now registers classes by the interface they implement (`DocumentTransformer`, `OperationTransformer`, `RuleTransformer`, `ExceptionToResponse`).
+- **Automatic `operationId`s** following Scramble's rules (explicit id, then route name without `api.`, then controller + method, made unique). A `PATCH` next to `PUT` on one route gets a `_patch` suffix. Generated ids do not change MCP tool names in the default `snake` naming mode.
+- `geni.servers` (and per-API `servers`): description => URL entries emitted as OpenAPI `servers`.
+
+- **JsonResource inference now matches Scramble.** Each `toArray()` key is typed from what it returns:
+  - model attributes from migration columns refined by `$casts` / `casts()` (booleans, arrays, dates, enum classes as component refs), nullable columns as `["type", "null"]`;
+  - literals with `const`, `(bool)`/`(int)`/... casts, nested arrays (objects with `required`), string concatenation, ternaries, `match`, common helpers (`route()`, `url()`, `count()`, ...) and Carbon formatters (`?->toIso8601String()` stays nullable);
+  - relations (`$this->posts`, `whenLoaded('posts')`) as arrays of / references to the related model, nullable for `belongsTo` with a nullable foreign key;
+  - nested resources and collections (`new TeamResource(...)`, `PostResource::make(...)`, `PostResource::collection(...)`) as component references;
+  - `when*` helpers (`when`, `whenLoaded`, `whenCounted`, `whenNotNull`, `whenHas`, `whenAggregated`, `whenExistsLoaded`, `whenPivotLoaded*`) and `mergeWhen` / `mergeUnless` produce optional keys, `merge` required ones;
+  - `parent::toArray()` and `array_merge(parent::toArray(), [...])` document the serialized model.
+- Every resource and model schema now lists its `required` keys.
+- Raw Eloquent responses: `return $user` for a typed parameter, `User::findOrFail()`, `User::query()->...->first()`, `User::all()` / `->get()`. Model schemas honour `$hidden` / `$visible` and the `#[Hidden]` / `#[Visible]` attributes.
+- Validation rules: `url`/`active_url` (`format: uri`), `ipv4`/`ipv6`, `decimal`, `list`, `multiple_of`, `mimes`/`mimetypes`/`extensions` (file upload); `sometimes` makes a field optional; rules with no JSON Schema equivalent (`unique`, `after`, `required_if`, `gt`, ...) are no longer reported as unsupported.
+- The docs UI lists nested properties of objects, `$ref`s, nullable unions and arrays, and shows `const` values, enums and `optional` keys.
+
+### Changed
+
+- Composer constraints now match the supported range: tests run on Laravel 10, 11, 12 and 13 (Testbench 8–11, Pest 2–5, `spatie/laravel-query-builder` up to 7) in a PHP × Laravel CI matrix. The `illuminate/*` components Geni uses and `guzzlehttp/guzzle` (needed by MCP `tools/call`) are now declared in `require`.
+- MCP routes skip CSRF in every auth mode, so adding `web` to `geni.middleware` does not break JSON-RPC clients.
+
+- Committed specs gain `operationId` on every operation; regenerate them for `geni:check`.
+- **Resource responses are wrapped the way Laravel sends them.** A single resource is documented as `{data: ...}` (or the resource's `$wrap` key, unwrapped when `$wrap = null`) plus `with()` and `additional([...])` keys; a resource collection as `{data: [...]}`; a paginated collection as `{data, links, meta}` instead of the raw paginator shape. Response descriptions follow Scramble (`` `UserResource` ``, ``Array of `UserResource` ``, ``Paginated set of `UserResource` ``). Regenerate committed specs used by `geni:check`.
+- `@response SomeResource` / `#[Response(type: ...)]` naming a resource, model or Data class now produces the same wrapped, fully inferred schema as a returned value instead of a bare `$ref`.
+- Unresolvable resource keys still fall back to `string` with an `x-geni-unresolved` diagnostic.
+
+
+### Security
+
+- **Reflected XSS in the docs UI**: the `?api=` query string was written into the Alpine `x-data` attribute with HTML escaping only, which the browser decodes before Alpine evaluates it. The API name is now only accepted when it is `default` or a key of `config('geni.apis')` (anything else returns 404), and every value passed to `x-data` goes through `@js()`.
+- **MCP `tools/call` over HTTP is now opt-in** (`geni.mcp.http_execution`, env `GENI_MCP_HTTP_EXECUTION`, default `false`). Before, anyone who could open the docs could run any documented endpoint, including `DELETE`, with the server's configured bearer token or API key. `geni:mcp:serve` (stdio) is unchanged.
+- `POST` to the MCP endpoint now requires an `application/json` body (415 otherwise), so a cross-site form or `text/plain` request can no longer reach it.
+- Blank docs credentials no longer open the Basic Auth gate for an empty `user:password`. Blank values for both now mean "no gate" (same as `null`); a blank username or password with the other one set now fails closed.
+- Docs form login compares username and password in constant time without short-circuiting; logout regenerates the session id and CSRF token.
+- `custom_css` can no longer close the `<style>` element.
+- Default Tailwind Play CDN and Alpine.js URLs are pinned (`cdn.tailwindcss.com/3.4.17`, `alpinejs@3.14.9`) instead of floating, and the login page now honours the same `renderers.blade.*_cdn_url` config.
+- Internal exception messages are no longer returned to MCP clients; they are reported to the application's exception handler instead.
+
+### Fixed
+
+- A declared return type such as `Response` was emitted as an OpenAPI type (`{"type": "Response"}`), which is invalid. `response()->noContent()` is now documented as `204 No content`, and an operation no longer gets a default `200` next to another success response.
+- Operation and parameter extensions (`x-unauthenticated`, `x-api`, `x-geni-unresolved`) were nested under an extra `x-geni-unresolved` key.
+- **Operation title and description now come from the controller method's PHPDoc, the same way Scramble reads them.** The first paragraph becomes the summary (trailing periods removed) and everything after the first blank line becomes the description. Before, Geni ignored that text and fell back to the route name (for example `api.projects.index`), so docs migrated from Scramble lost their titles and descriptions. Precedence: `#[Endpoint(title, description)]`, then `@description`, then the PHPDoc text, then the route name.
+- The docs UI now opens on an API overview (title, version and `info.description`) when the URL has no endpoint hash, instead of jumping to the first endpoint, so the API description is visible like in Scramble. Clicking the API title in the sidebar returns to it. Multi-line descriptions keep their line breaks.
+- An app name containing an apostrophe (for example `Rafi's API`) broke the Alpine expression that renders the sidebar title.
+- `geni:cache`, `geni:check`, `geni:export` and `geni:analyze` ignored `--api` and always built the default document (while storing or labelling it under the requested name). All commands and the docs controller now build documents through one `Geni\Laravel\DocumentGenerator`, and every command rejects unknown `--api` names.
+- MCP `POST` requests returned 419 in form-auth mode because the route sat behind CSRF verification; the MCP route now skips CSRF (safe because of the JSON-only requirement above).
+- JSON-RPC notifications (requests without an `id`) no longer receive a "Method not found" response.
+- `initialize` negotiates the protocol version (`2025-06-18`, `2025-03-26`, `2024-11-05`) instead of echoing whatever the client sends.
+- The MCP executor no longer rewrites a configured `http://` base URL to `https://`.
+- `api_path` now matches whole path segments, so `api` no longer picks up routes such as `apiary/...` or `api-legacy/...`.
+- `?api=v1.routes` (or any dotted name) no longer reaches nested config values and crashes with a 500.
+
 ## [2.0.1] - 2026-09-17
 
 ### Documentation & Maintenance

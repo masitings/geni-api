@@ -23,7 +23,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS Play CDN -->
-    <script src="{{ $configuration['tailwind_cdn_url'] ?? 'https://cdn.tailwindcss.com' }}"></script>
+    <script src="{{ $configuration['tailwind_cdn_url'] ?? 'https://cdn.tailwindcss.com/3.4.17' }}"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -46,7 +46,7 @@
     </script>
 
     <!-- Alpine.js CDN -->
-    <script defer src="{{ $configuration['alpine_cdn_url'] ?? 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js' }}"></script>
+    <script defer src="{{ $configuration['alpine_cdn_url'] ?? 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js' }}"></script>
 
     <!-- Prism.js CDN, real syntax highlighting for code samples -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
@@ -74,15 +74,24 @@
         ::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.6); }
         .dark ::-webkit-scrollbar-thumb { background: rgba(75, 85, 99, 0.5); }
         .dark ::-webkit-scrollbar-thumb:hover { background: rgba(75, 85, 99, 0.8); }
-        {!! $configuration['custom_css'] ?? '' !!}
+        .geni-md > * + * { margin-top: .6em; }
+        .geni-md ul { list-style: disc; padding-left: 1.25rem; }
+        .geni-md ol { list-style: decimal; padding-left: 1.25rem; }
+        .geni-md code { font-family: 'JetBrains Mono', monospace; font-size: .85em; padding: .1em .35em; border-radius: .25rem; background: rgba(148, 163, 184, .18); }
+        .geni-md pre { overflow-x: auto; padding: .75rem; border-radius: .5rem; background: #0f172a; color: #e2e8f0; }
+        .geni-md pre code { padding: 0; background: none; }
+        .geni-md a { color: #0284c7; text-decoration: underline; }
+        .geni-md strong { font-weight: 600; }
+        .geni-md h1, .geni-md h2, .geni-md h3, .geni-md h4 { font-weight: 600; color: inherit; }
+        {!! str_ireplace('</style', '<\\/style', (string) ($configuration['custom_css'] ?? '')) !!}
     </style>
 </head>
 <body
     class="h-full bg-slate-50 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100 selection:bg-sky-500 selection:text-white"
     x-data="geniDocs({
-        specUrl: '{{ $url }}',
-        currentApi: '{{ $currentApi ?? 'default' }}',
-        availableApis: {{ json_encode($availableApis ?? []) }}
+        specUrl: @js($url),
+        currentApi: @js($currentApi ?? 'default'),
+        availableApis: @js($availableApis ?? [])
     })"
     x-init="init()"
 >
@@ -123,7 +132,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
             </button>
-            <span class="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate" x-text="doc?.info?.title || '{{ $title }}'"></span>
+            <span class="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate" x-text="doc?.info?.title || @js($title)"></span>
         </div>
 
         <!-- Main Workspace -->
@@ -137,7 +146,7 @@
                     <div class="flex h-full w-64 flex-col">
                         <!-- Sidebar Header: Title, Collapse & Theme Toggle -->
                         <div class="flex items-center justify-between gap-2 p-3">
-                            <span class="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate" x-text="doc?.info?.title || '{{ $title }}'"></span>
+                            <button type="button" @click="showOverview()" class="min-w-0 text-left font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate hover:text-sky-600 dark:hover:text-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 rounded" x-text="doc?.info?.title || @js($title)"></button>
                             <div class="flex shrink-0 items-center divide-x divide-slate-200 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
                                 <button
                                     type="button"
@@ -354,6 +363,18 @@
             </button>
 
             <main class="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                <!-- API Overview (info title, version, description) -->
+                <template x-if="!selectedEndpoint && doc">
+                    <div class="mx-auto flex max-w-3xl flex-col gap-4 py-2">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white" x-text="doc.info?.title"></h1>
+                            <span x-show="doc.info?.version" class="rounded-full border border-slate-200 px-2.5 py-0.5 font-mono text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300" x-text="'v' + doc.info?.version"></span>
+                        </div>
+                        <div x-show="doc.info?.description" class="geni-md text-sm leading-relaxed text-slate-600 dark:text-slate-400" x-html="markdown(doc.info?.description)"></div>
+                        <p class="text-xs text-slate-500 dark:text-slate-400" x-text="endpoints.length + (endpoints.length === 1 ? ' endpoint' : ' endpoints')"></p>
+                    </div>
+                </template>
+
                 <template x-if="selectedEndpoint">
                     <div class="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_440px]">
                         <!-- Center Documentation Column -->
@@ -419,7 +440,7 @@
 
                                 <!-- Description -->
                                 <template x-if="selectedEndpoint.operation.description">
-                                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed" x-text="selectedEndpoint.operation.description"></p>
+                                    <div class="geni-md text-sm text-slate-600 dark:text-slate-400 leading-relaxed" x-html="markdown(selectedEndpoint.operation.description)"></div>
                                 </template>
                             </div>
 
@@ -556,19 +577,19 @@
                                         <span class="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">application/json</span>
                                     </div>
                                     <div class="text-xs">
-                                        <template x-for="(prop, name) in (resolvedRequestSchema?.properties || {})" :key="name">
-                                            <div class="flex flex-col gap-1.5 border-b border-slate-200/80 p-3.5 last:border-b-0 dark:border-slate-800">
+                                        <template x-for="row in schemaRows(requestBodySchema)" :key="row.key">
+                                            <div class="flex flex-col gap-1.5 border-b border-slate-200/80 p-3.5 last:border-b-0 dark:border-slate-800" :style="'padding-left: ' + (0.875 + row.depth * 1.25) + 'rem'">
                                                 <div class="flex flex-wrap items-center gap-2">
-                                                    <code class="font-mono text-xs font-semibold text-slate-900 dark:text-white" x-text="name"></code>
-                                                    <span x-show="(resolvedRequestSchema.required || []).includes(name)" class="rounded border border-rose-500/30 px-1.5 py-0 text-[10px] font-mono text-rose-600 dark:text-rose-400">required</span>
-                                                    <span x-show="!(resolvedRequestSchema.required || []).includes(name)" class="text-[10px] font-mono text-slate-400">optional</span>
-                                                    <span class="rounded bg-slate-100 px-1.5 py-0 text-[10px] font-mono text-slate-600 dark:bg-slate-800 dark:text-slate-400" x-text="Array.isArray(prop.type) ? prop.type.join(' · ') : (prop.type || 'any')"></span>
+                                                    <code class="font-mono text-xs font-semibold text-slate-900 dark:text-white" x-text="row.name"></code>
+                                                    <span x-show="row.required" class="rounded border border-rose-500/30 px-1.5 py-0 text-[10px] font-mono text-rose-600 dark:text-rose-400">required</span>
+                                                    <span x-show="!row.required" class="text-[10px] font-mono text-slate-400">optional</span>
+                                                    <span class="rounded bg-slate-100 px-1.5 py-0 text-[10px] font-mono text-slate-600 dark:bg-slate-800 dark:text-slate-400" x-text="row.label"></span>
                                                 </div>
-                                                <template x-if="prop.description">
-                                                    <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed" x-text="prop.description"></p>
+                                                <template x-if="row.description">
+                                                    <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed" x-text="row.description"></p>
                                                 </template>
-                                                <template x-if="prop.default !== undefined">
-                                                    <div class="font-mono text-[11px] text-slate-400">default: <span class="text-slate-700 dark:text-slate-300" x-text="JSON.stringify(prop.default)"></span></div>
+                                                <template x-if="row.default !== undefined">
+                                                    <div class="font-mono text-[11px] text-slate-400">default: <span class="text-slate-700 dark:text-slate-300" x-text="JSON.stringify(row.default)"></span></div>
                                                 </template>
                                             </div>
                                         </template>
@@ -603,11 +624,11 @@
                                 </div>
 
                                 <template x-if="activeResponse?.description">
-                                    <p class="border-b border-slate-200/80 px-3 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400" x-text="activeResponse.description"></p>
+                                    <div class="geni-md border-b border-slate-200/80 px-3 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400" x-html="markdown(activeResponse.description)"></div>
                                 </template>
 
                                 <!-- Schema / Raw tab switcher (only shown when a schema table is available) -->
-                                <template x-if="resolvedResponseSchema?.properties">
+                                <template x-if="responseRows.length > 0">
                                     <div class="border-b border-slate-200/80 bg-slate-50/50 px-3 py-2 dark:border-slate-800 dark:bg-slate-800/20">
                                         <div class="flex w-fit items-center gap-1 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800">
                                             <button
@@ -637,23 +658,26 @@
                                 </template>
 
                                 <!-- Response Schema Table -->
-                                <template x-if="resolvedResponseSchema?.properties && responseViewMode === 'schema'">
+                                <template x-if="responseRows.length > 0 && responseViewMode === 'schema'">
                                     <div class="border-b border-slate-200/80 text-xs dark:border-slate-800">
-                                        <template x-for="(prop, name) in resolvedResponseSchema.properties" :key="name">
-                                            <div class="flex flex-col gap-1.5 border-b border-slate-200/80 p-3 last:border-b-0 dark:border-slate-800">
+                                        <template x-for="row in responseRows" :key="row.key">
+                                            <div class="flex flex-col gap-1.5 border-b border-slate-200/80 p-3 last:border-b-0 dark:border-slate-800" :style="'padding-left: ' + (0.75 + row.depth * 1.25) + 'rem'">
                                                 <div class="flex flex-wrap items-center justify-between gap-2">
-                                                    <code class="font-mono text-xs font-semibold text-slate-900 dark:text-white" x-text="name"></code>
-                                                    <span class="rounded bg-slate-100 px-1.5 py-0 text-[10px] font-mono text-slate-600 dark:bg-slate-800 dark:text-slate-400" x-text="Array.isArray(prop.type) ? prop.type.join(' · ') : (prop.type || 'any')"></span>
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <code class="font-mono text-xs font-semibold text-slate-900 dark:text-white" x-text="row.name"></code>
+                                                        <span x-show="!row.required" class="text-[10px] font-mono text-slate-400">optional</span>
+                                                    </div>
+                                                    <span class="rounded bg-slate-100 px-1.5 py-0 text-[10px] font-mono text-slate-600 dark:bg-slate-800 dark:text-slate-400" x-text="row.label"></span>
                                                 </div>
-                                                <template x-if="prop.description">
-                                                    <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed" x-text="prop.description"></p>
+                                                <template x-if="row.description">
+                                                    <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed" x-text="row.description"></p>
                                                 </template>
                                             </div>
                                         </template>
                                     </div>
                                 </template>
 
-                                <template x-if="responseExample && (!resolvedResponseSchema?.properties || responseViewMode === 'raw')">
+                                <template x-if="responseExample && (responseRows.length === 0 || responseViewMode === 'raw')">
                                     <div class="relative">
                                         <button
                                             type="button"
@@ -760,7 +784,7 @@
             <div @click="isMobileMenuOpen = false" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"></div>
             <div class="relative flex w-80 max-w-full flex-col bg-white dark:bg-slate-900 shadow-2xl">
                 <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
-                    <span class="font-bold text-sm" x-text="doc?.info?.title"></span>
+                    <button type="button" @click="showOverview(); isMobileMenuOpen = false" class="min-w-0 text-left font-bold text-sm truncate hover:text-sky-600 dark:hover:text-sky-400" x-text="doc?.info?.title"></button>
                     <button @click="isMobileMenuOpen = false" class="text-slate-400 hover:text-slate-600">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1003,8 +1027,13 @@
                             return;
                         }
                     }
-                    if (list.length > 0) {
-                        this.selectEndpoint(list[0]);
+                    // No hash: stay on the API overview, like Scramble's default UI.
+                },
+
+                showOverview() {
+                    this.selectedEndpoint = null;
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState(null, '', window.location.pathname + window.location.search);
                     }
                 },
 
@@ -1110,6 +1139,10 @@
 
                 get resolvedResponseSchema() {
                     return this.resolveSchema(this.activeResponseSchema, this.doc);
+                },
+
+                get responseRows() {
+                    return this.activeResponseSchema ? this.schemaRows(this.activeResponseSchema) : [];
                 },
 
                 get responseExample() {
@@ -1301,6 +1334,36 @@
                     setTimeout(() => { this.copied[key] = false; }, 1500);
                 },
 
+                /**
+                 * Small, safe Markdown subset for descriptions: everything is
+                 * HTML-escaped first, then paragraphs, lists, headings, fenced
+                 * code, `code`, **bold**, *italic* and http(s)/relative links.
+                 */
+                markdown(text) {
+                    if (!text) return '';
+                    const escape = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    const inline = value => value
+                        .replace(/`([^`]+)`/g, '<code>$1</code>')
+                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                        .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>')
+                        .replace(/\[([^\]]+)\]\(((?:https?:\/\/|\/|#|mailto:)[^\s)]*)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+                    const blocks = [];
+                    const source = escape(String(text).replace(/\r\n/g, '\n')).replace(/```[^\n]*\n([\s\S]*?)```/g, (match, code) => {
+                        blocks.push('<pre><code>' + code.replace(/\n$/, '') + '</code></pre>');
+                        return '\u0000' + (blocks.length - 1) + '\u0000';
+                    });
+                    return source.split(/\n{2,}/).map(block => {
+                        const trimmed = block.trim();
+                        if (/^\u0000\d+\u0000$/.test(trimmed)) return blocks[Number(trimmed.slice(1, -1))];
+                        const heading = trimmed.match(/^(#{1,6})\s+(.*)$/);
+                        if (heading) return '<h4>' + inline(heading[2]) + '</h4>';
+                        const lines = trimmed.split('\n');
+                        if (lines.every(line => /^\s*[-*]\s+/.test(line))) return '<ul>' + lines.map(line => '<li>' + inline(line.replace(/^\s*[-*]\s+/, '')) + '</li>').join('') + '</ul>';
+                        if (lines.every(line => /^\s*\d+[.)]\s+/.test(line))) return '<ol>' + lines.map(line => '<li>' + inline(line.replace(/^\s*\d+[.)]\s+/, '')) + '</li>').join('') + '</ol>';
+                        return '<p>' + lines.map(inline).join('<br>') + '</p>';
+                    }).join('');
+                },
+
                 resolveSchema(schema, doc) {
                     if (!schema) return schema;
                     if (schema.$ref) {
@@ -1310,10 +1373,101 @@
                     return schema;
                 },
 
+                refName(schema) {
+                    return schema?.$ref ? schema.$ref.split('/').pop() : null;
+                },
+
+                nonNullOptions(schema) {
+                    return (schema?.anyOf || []).filter(option => !(option.type === 'null' && !option.$ref));
+                },
+
+                typeLabel(schema) {
+                    if (!schema) return 'any';
+                    if (schema.$ref) {
+                        const target = this.resolveSchema(schema, this.doc);
+                        return this.refName(schema) + (target?.enum?.length ? ' ∈ ' + target.enum.map(value => JSON.stringify(value)).join(', ') : '');
+                    }
+                    if (schema.anyOf) return schema.anyOf.map(option => this.typeLabel(option)).join(' | ');
+                    let label;
+                    if (Array.isArray(schema.type)) {
+                        label = schema.type.map(type => type === 'array' && schema.items ? 'array<' + this.typeLabel(schema.items) + '>' : type).join(' | ');
+                    } else if (schema.type === 'array') {
+                        label = schema.items ? 'array<' + this.typeLabel(schema.items) + '>' : 'array';
+                    } else {
+                        label = schema.type || 'any';
+                    }
+                    if (schema.format) label += ' (' + schema.format + ')';
+                    if (schema.const !== undefined) label += ' = ' + JSON.stringify(schema.const);
+                    else if (schema.enum && schema.enum.length) label += ' ∈ ' + schema.enum.map(value => JSON.stringify(value)).join(', ');
+                    return label;
+                },
+
+                /**
+                 * The object schema whose properties should be listed under a field:
+                 * follows $ref, nullable anyOf and array items.
+                 */
+                childObject(schema, doc) {
+                    let current = schema;
+                    for (let step = 0; current && step < 6; step++) {
+                        if (current.$ref) { current = this.resolveSchema(current, doc); continue; }
+                        if (current.anyOf) {
+                            const options = this.nonNullOptions(current);
+                            if (options.length !== 1) return null;
+                            current = options[0];
+                            continue;
+                        }
+                        const types = Array.isArray(current.type) ? current.type : [current.type];
+                        if (types.includes('array') && current.items) { current = current.items; continue; }
+                        return current.properties ? current : null;
+                    }
+                    return null;
+                },
+
+                refChain(schema) {
+                    const names = [];
+                    let current = schema;
+                    for (let step = 0; current && step < 6; step++) {
+                        if (current.$ref) names.push(this.refName(current));
+                        current = current.$ref ? null : (this.nonNullOptions(current)[0] || current.items || null);
+                    }
+                    return names;
+                },
+
+                schemaRows(schema, depth = 0, seen = [], prefix = '') {
+                    const object = this.childObject(schema, this.doc);
+                    if (!object || depth > 5) return [];
+                    const rows = [];
+                    const visited = seen.concat(this.refChain(schema));
+                    for (const [name, prop] of Object.entries(object.properties || {})) {
+                        const key = prefix + name;
+                        rows.push({
+                            key: key,
+                            name: name,
+                            depth: depth,
+                            label: this.typeLabel(prop),
+                            required: (object.required || []).includes(name),
+                            description: prop.description,
+                            default: prop.default,
+                        });
+                        const refs = this.refChain(prop);
+                        if (refs.some(ref => visited.includes(ref))) continue;
+                        rows.push(...this.schemaRows(prop, depth + 1, visited, key + '.'));
+                    }
+                    return rows;
+                },
+
                 buildExample(schema, doc, depth = 0) {
                     if (!schema || depth > 4) return null;
                     const resolved = this.resolveSchema(schema, doc);
                     if (!resolved) return null;
+                    if (resolved.anyOf) {
+                        const option = this.nonNullOptions(resolved)[0];
+                        return option ? this.buildExample(option, doc, depth + 1) : null;
+                    }
+                    if (resolved.const !== undefined) return resolved.const;
+                    if (Array.isArray(resolved.type) && resolved.type.includes('array') && resolved.items) {
+                        return [this.buildExample(resolved.items, doc, depth + 1)];
+                    }
 
                     if (resolved.type === 'array' && resolved.items) {
                         return [this.buildExample(resolved.items, doc, depth + 1)];

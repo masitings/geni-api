@@ -51,18 +51,31 @@ final class RouteDiscoverer
             return iterator_to_array($routesConfig());
         }
 
-        $prefix = $apiConfig['api_path'] ?? config('geni.api_path', 'api');
-
-        $allRoutes = Route::getRoutes();
+        $prefix = trim((string) ($apiConfig['api_path'] ?? config('geni.api_path', 'api')), '/');
 
         $filtered = [];
-        foreach ($allRoutes as $route) {
-            if (str_starts_with($route->uri(), $prefix)) {
+        foreach (Route::getRoutes() as $route) {
+            if (self::uriMatchesPrefix($route->uri(), $prefix)) {
                 $filtered[] = $route;
             }
         }
 
         return $filtered;
+    }
+
+    /**
+     * Match whole path segments only, so an "api" prefix covers "api" and
+     * "api/users" but not "apiary" or "api-legacy/users".
+     */
+    private static function uriMatchesPrefix(string $uri, string $prefix): bool
+    {
+        if ($prefix === '') {
+            return true;
+        }
+
+        $uri = trim($uri, '/');
+
+        return $uri === $prefix || str_starts_with($uri, $prefix.'/');
     }
 
     /**

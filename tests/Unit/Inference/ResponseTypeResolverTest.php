@@ -30,12 +30,19 @@ test('response priority 2: inferred type wins when more specific than broad decl
     expect($result->ref)->toBe('#/components/schemas/ConcretePostResource');
 });
 
-test('response priority 3: declared return type wins when inferred has no shape', function () {
+test('response priority 3: a declared class name is never emitted as an OpenAPI type', function () {
     $resolver = new ResponseTypeResolver;
 
-    $inferred = new Schema; // empty
+    $result = $resolver->resolve(null, 'Illuminate\Http\Response', new Schema);
 
-    $result = $resolver->resolve(null, 'App\Http\Resources\PostResource', $inferred);
+    expect($result->type)->toBeNull()
+        ->and($result->ref)->toBeNull();
+});
 
-    expect($result->type)->toBe('App\Http\Resources\PostResource');
+test('response priority 3: declared scalar return types map to OpenAPI types', function () {
+    $resolver = new ResponseTypeResolver;
+
+    expect($resolver->resolve(null, 'string', new Schema)->type)->toBe('string')
+        ->and($resolver->resolve(null, 'int', new Schema)->type)->toBe('integer')
+        ->and($resolver->resolve(null, 'bool', new Schema)->type)->toBe('boolean');
 });
