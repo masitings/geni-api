@@ -10,6 +10,8 @@ use Geni\Laravel\Mcp\McpManifestGenerator;
 use Geni\Laravel\Mcp\McpProtocolHandler;
 use Geni\Laravel\Renderer;
 use Geni\Laravel\Renderers\BladeRenderer;
+use Geni\Laravel\Renderers\ElementsRenderer;
+use Geni\Laravel\Renderers\ScalarRenderer;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Cache;
@@ -201,6 +203,14 @@ final class DocumentationController extends Controller
 
         if ($renderer === 'blade' || $renderer === 'default' || $renderer === null) {
             return new BladeRenderer;
+        }
+
+        if ($renderer === 'scalar') {
+            return new ScalarRenderer;
+        }
+
+        if ($renderer === 'elements') {
+            return new ElementsRenderer;
         }
 
         if (is_string($renderer) && class_exists($renderer) && is_subclass_of($renderer, Renderer::class)) {

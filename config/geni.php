@@ -101,7 +101,9 @@ return [
     |
     | The renderer implementation used for the docs UI route.
     | Supported built-in options: 'blade' (default standalone portal),
-    | or a custom class name implementing Geni\Laravel\Renderer.
+    | 'scalar' (Scalar API Reference), 'elements' (Stoplight Elements, as in
+    | Scramble), or a custom class name implementing Geni\Laravel\Renderer.
+    | Per API: set `renderer` inside an entry of `apis`.
     |
     */
 
@@ -113,6 +115,24 @@ return [
             'tailwind_cdn_url' => 'https://cdn.tailwindcss.com/3.4.17',
             'alpine_cdn_url' => 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js',
             'custom_css' => null,
+        ],
+
+        // 'renderer' => 'scalar': Scalar API Reference. `configuration` is passed to
+        // Scalar.createApiReference() as-is (theme, layout, hideModels, ...).
+        'scalar' => [
+            'script_url' => null, // defaults to a pinned jsDelivr build
+            'configuration' => [
+                'theme' => 'laravel',
+            ],
+        ],
+
+        // 'renderer' => 'elements': Stoplight Elements (Scramble's default UI).
+        'elements' => [
+            'script_url' => null,
+            'stylesheet_url' => null,
+            'layout' => 'sidebar', // 'sidebar' | 'stacked'
+            'hide_try_it' => false,
+            'theme' => 'light', // 'light' | 'dark'
         ],
     ],
 
@@ -148,9 +168,13 @@ return [
     | Restrict to Local Environment
     |--------------------------------------------------------------------------
     |
-    | Docs routes 404 outside the 'local' environment by default. Set to
-    | false to allow docs in other environments (e.g. staging), relying on
-    | `docs_auth` for access control instead.
+    | Docs routes 404 outside the 'local' environment by default. Define a
+    | `viewApiDocs` gate (as with Scramble) to decide access elsewhere:
+    |
+    |     Gate::define('viewApiDocs', fn (?User $user) => $user?->isAdmin());
+    |
+    | User-based gates need a session, so add 'web' to `middleware` below.
+    | Set this to false to skip the check entirely and rely on `docs_auth`.
     |
     */
 

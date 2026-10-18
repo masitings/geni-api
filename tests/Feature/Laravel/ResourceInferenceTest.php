@@ -38,6 +38,10 @@ class ResourceInferenceTest extends TestCase
             Route::get('posts/find/{id}', [MiscController::class, 'find']);
             Route::get('posts-all', [MiscController::class, 'list']);
             Route::delete('posts/{post}', [MiscController::class, 'destroy']);
+            Route::post('posts', [MiscController::class, 'store']);
+            Route::post('posts/saved', [MiscController::class, 'storeWithSave']);
+            Route::post('posts/accepted', [MiscController::class, 'accepted']);
+            Route::get('posts/{post}/custom', [MiscController::class, 'custom']);
         });
     }
 
@@ -189,6 +193,18 @@ class ResourceInferenceTest extends TestCase
             ->and($paths['/api/posts-all']['get']['responses']['200']['content']['application/json']['schema'])->toBe(['type' => 'array', 'items' => ['$ref' => '#/components/schemas/Post']])
             ->and($paths['/api/posts/{post}']['delete']['responses'])->toHaveKey('204')
             ->and($paths['/api/posts/{post}']['delete']['responses'])->not->toHaveKey('200');
+    }
+
+    public function test_status_codes_for_created_models_and_explicit_codes(): void
+    {
+        $paths = $this->document['paths'];
+
+        expect($paths['/api/posts']['post']['responses'])->toHaveKey('201')->not->toHaveKey('200')
+            ->and($paths['/api/posts']['post']['responses']['201']['content']['application/json']['schema']['properties']['data'])->toBe(['$ref' => '#/components/schemas/PostResource'])
+            ->and($paths['/api/posts/saved']['post']['responses'])->toHaveKey('201')
+            ->and($paths['/api/posts/accepted']['post']['responses'])->toHaveKey('202')
+            ->and($paths['/api/posts/{post}/custom']['get']['responses'])->toHaveKey('203')
+            ->and($paths['/api/users/{user}']['get']['responses'])->toHaveKey('200');
     }
 
     /**

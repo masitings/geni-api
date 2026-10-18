@@ -19,7 +19,7 @@
             "post": {
                 "summary": "POST /api/posts - create a new post\nUses literal validate() rules",
                 "responses": {
-                    "200": {
+                    "201": {
                         "description": "`PostResource`",
                         "content": {
                             "application/json": {

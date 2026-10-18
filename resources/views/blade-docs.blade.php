@@ -74,6 +74,15 @@
         ::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.6); }
         .dark ::-webkit-scrollbar-thumb { background: rgba(75, 85, 99, 0.5); }
         .dark ::-webkit-scrollbar-thumb:hover { background: rgba(75, 85, 99, 0.8); }
+        .geni-md > * + * { margin-top: .6em; }
+        .geni-md ul { list-style: disc; padding-left: 1.25rem; }
+        .geni-md ol { list-style: decimal; padding-left: 1.25rem; }
+        .geni-md code { font-family: 'JetBrains Mono', monospace; font-size: .85em; padding: .1em .35em; border-radius: .25rem; background: rgba(148, 163, 184, .18); }
+        .geni-md pre { overflow-x: auto; padding: .75rem; border-radius: .5rem; background: #0f172a; color: #e2e8f0; }
+        .geni-md pre code { padding: 0; background: none; }
+        .geni-md a { color: #0284c7; text-decoration: underline; }
+        .geni-md strong { font-weight: 600; }
+        .geni-md h1, .geni-md h2, .geni-md h3, .geni-md h4 { font-weight: 600; color: inherit; }
         {!! str_ireplace('</style', '<\\/style', (string) ($configuration['custom_css'] ?? '')) !!}
     </style>
 </head>
@@ -361,7 +370,7 @@
                             <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white" x-text="doc.info?.title"></h1>
                             <span x-show="doc.info?.version" class="rounded-full border border-slate-200 px-2.5 py-0.5 font-mono text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300" x-text="'v' + doc.info?.version"></span>
                         </div>
-                        <p x-show="doc.info?.description" class="whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-400" x-text="doc.info?.description"></p>
+                        <div x-show="doc.info?.description" class="geni-md text-sm leading-relaxed text-slate-600 dark:text-slate-400" x-html="markdown(doc.info?.description)"></div>
                         <p class="text-xs text-slate-500 dark:text-slate-400" x-text="endpoints.length + (endpoints.length === 1 ? ' endpoint' : ' endpoints')"></p>
                     </div>
                 </template>
@@ -431,7 +440,7 @@
 
                                 <!-- Description -->
                                 <template x-if="selectedEndpoint.operation.description">
-                                    <p class="whitespace-pre-line text-sm text-slate-600 dark:text-slate-400 leading-relaxed" x-text="selectedEndpoint.operation.description"></p>
+                                    <div class="geni-md text-sm text-slate-600 dark:text-slate-400 leading-relaxed" x-html="markdown(selectedEndpoint.operation.description)"></div>
                                 </template>
                             </div>
 
@@ -615,7 +624,7 @@
                                 </div>
 
                                 <template x-if="activeResponse?.description">
-                                    <p class="border-b border-slate-200/80 px-3 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400" x-text="activeResponse.description.replaceAll('`', '')"></p>
+                                    <div class="geni-md border-b border-slate-200/80 px-3 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400" x-html="markdown(activeResponse.description)"></div>
                                 </template>
 
                                 <!-- Schema / Raw tab switcher (only shown when a schema table is available) -->
@@ -1323,6 +1332,36 @@
                     navigator.clipboard.writeText(text);
                     this.copied[key] = true;
                     setTimeout(() => { this.copied[key] = false; }, 1500);
+                },
+
+                /**
+                 * Small, safe Markdown subset for descriptions: everything is
+                 * HTML-escaped first, then paragraphs, lists, headings, fenced
+                 * code, `code`, **bold**, *italic* and http(s)/relative links.
+                 */
+                markdown(text) {
+                    if (!text) return '';
+                    const escape = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    const inline = value => value
+                        .replace(/`([^`]+)`/g, '<code>$1</code>')
+                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                        .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>')
+                        .replace(/\[([^\]]+)\]\(((?:https?:\/\/|\/|#|mailto:)[^\s)]*)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+                    const blocks = [];
+                    const source = escape(String(text).replace(/\r\n/g, '\n')).replace(/```[^\n]*\n([\s\S]*?)```/g, (match, code) => {
+                        blocks.push('<pre><code>' + code.replace(/\n$/, '') + '</code></pre>');
+                        return '\u0000' + (blocks.length - 1) + '\u0000';
+                    });
+                    return source.split(/\n{2,}/).map(block => {
+                        const trimmed = block.trim();
+                        if (/^\u0000\d+\u0000$/.test(trimmed)) return blocks[Number(trimmed.slice(1, -1))];
+                        const heading = trimmed.match(/^(#{1,6})\s+(.*)$/);
+                        if (heading) return '<h4>' + inline(heading[2]) + '</h4>';
+                        const lines = trimmed.split('\n');
+                        if (lines.every(line => /^\s*[-*]\s+/.test(line))) return '<ul>' + lines.map(line => '<li>' + inline(line.replace(/^\s*[-*]\s+/, '')) + '</li>').join('') + '</ul>';
+                        if (lines.every(line => /^\s*\d+[.)]\s+/.test(line))) return '<ol>' + lines.map(line => '<li>' + inline(line.replace(/^\s*\d+[.)]\s+/, '')) + '</li>').join('') + '</ol>';
+                        return '<p>' + lines.map(inline).join('<br>') + '</p>';
+                    }).join('');
                 },
 
                 resolveSchema(schema, doc) {

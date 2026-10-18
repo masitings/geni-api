@@ -20,8 +20,8 @@ Geni supports standard OpenAPI docblock conventions and PHP 8 attributes. If you
 
 - **Zero database connections.** Column types are reconstructed offline from migration files.
 - **Zero application boot for inference.** Route discovery is the only runtime touchpoint; everything else is static AST analysis.
-- **Standalone docs UI out of the box.** Powered by Blade, Tailwind Play CDN, and Alpine.js with live search, Prism.js syntax highlighting, and an interactive Try It console.
-- **Form-based or HTTP Basic Auth gate.** Protect documentation routes with isolated credentials independent of application user tables.
+- **Standalone docs UI out of the box.** Powered by Blade, Tailwind Play CDN, and Alpine.js with live search, Prism.js syntax highlighting, Markdown descriptions and an interactive Try It console. Prefer a hosted UI? Switch to Scalar or Stoplight Elements with one config value.
+- **Access control.** Docs are open in `local`; elsewhere a `viewApiDocs` gate decides (the Scramble convention), or protect them with isolated form-based / HTTP Basic credentials independent of application user tables.
 - **Runs anywhere your code does** (local checkouts, CI pipelines, pre-commit hooks).
 
 ## Installation
@@ -45,7 +45,7 @@ php artisan vendor:publish --tag=geni-config
    php artisan geni:export --path=openapi.json
    ```
 
-3. Or browse the interactive documentation live in your browser at `/docs/api` (gated to the `local` environment by default).
+3. Or browse the interactive documentation live in your browser at `/docs/api` (open in the `local` environment; see [Access & UI](#access--ui) for other environments).
 
 No annotations required: for endpoints using route-model binding, validated request bodies, and `JsonResource` responses, Geni infers schemas automatically.
 
@@ -117,6 +117,27 @@ Configure Claude Desktop or Claude Code to run Geni's built-in MCP server:
   - `GET /docs/api/mcp` returns the standard MCP `tools/list` JSON envelope.
   - `POST /docs/api/mcp` accepts JSON-RPC 2.0 requests sent as `application/json` (`initialize`, `tools/list`, `tools/call`).
   - `tools/call` over HTTP is off by default because it runs endpoints with the server's configured credentials for anyone who can open the docs. Enable it with `GENI_MCP_HTTP_EXECUTION=true` (`geni.mcp.http_execution`). `geni:mcp:serve` is not affected.
+
+## Access & UI
+
+Outside the `local` environment the docs return 404 unless you define a `viewApiDocs` gate, exactly like Scramble:
+
+```php
+// AppServiceProvider::boot()
+Gate::define('viewApiDocs', fn (?User $user) => in_array($user?->email, ['admin@example.com'], true));
+```
+
+User-based gates need a session: add `'web'` to `geni.middleware`. A denying gate returns 403. Set `restrict_to_local` to `false` to rely only on `docs_auth`.
+
+Pick the UI with `geni.renderer` (or `renderer` inside an entry of `geni.apis`):
+
+| Renderer | UI |
+|---|---|
+| `blade` (default) | Built-in portal: version switcher, Try It console, MCP-friendly, no build step |
+| `scalar` | [Scalar API Reference](https://github.com/scalar/scalar); options in `renderers.scalar.configuration` are passed to Scalar as-is |
+| `elements` | [Stoplight Elements](https://github.com/stoplightio/elements), Scramble's default UI |
+
+Scalar and Elements load pinned CDN builds; override `script_url` / `stylesheet_url` to self-host them. Descriptions written in PHPDoc support a safe Markdown subset in the built-in portal (paragraphs, lists, headings, fenced code, `code`, **bold**, *italic*, links).
 
 ## Customizing the Document
 

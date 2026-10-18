@@ -22,7 +22,8 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
 class GeniServiceProvider extends PackageServiceProvider
 {
     /**
-     * CSRF middleware removed from the MCP JSON-RPC route in form-auth mode.
+     * CSRF middleware removed from the MCP JSON-RPC routes (they may sit in
+     * the `web` group in form-auth mode or when `geni.middleware` adds it).
      * JSON-RPC clients cannot send a CSRF token; the controller instead
      * requires an application/json body, which a cross-site form cannot send
      * without a CORS preflight. PreventRequestForgery is Laravel 13's base
@@ -139,7 +140,8 @@ class GeniServiceProvider extends PackageServiceProvider
                 $router->get($jsonPath, '\Geni\Laravel\Controllers\DocumentationController@document');
                 $router->get($uiPath, '\Geni\Laravel\Controllers\DocumentationController@ui');
                 if ($mcpPath !== null && config('geni.mcp.enabled', true)) {
-                    $router->match(['GET', 'POST'], $mcpPath, '\Geni\Laravel\Controllers\DocumentationController@mcp');
+                    $router->match(['GET', 'POST'], $mcpPath, '\Geni\Laravel\Controllers\DocumentationController@mcp')
+                        ->withoutMiddleware(self::CSRF_MIDDLEWARE);
                 }
             });
 
@@ -154,7 +156,8 @@ class GeniServiceProvider extends PackageServiceProvider
                     $router->get($apiJsonPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@document', 'api' => $name]);
                     $router->get($apiUiPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@ui', 'api' => $name]);
                     if (config('geni.mcp.enabled', true)) {
-                        $router->match(['GET', 'POST'], $apiMcpPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@mcp', 'api' => $name]);
+                        $router->match(['GET', 'POST'], $apiMcpPath, ['uses' => '\Geni\Laravel\Controllers\DocumentationController@mcp', 'api' => $name])
+                            ->withoutMiddleware(self::CSRF_MIDDLEWARE);
                     }
                 }
             });

@@ -17,7 +17,15 @@
     },
     "require": {
         "php": "^8.2",
+        "guzzlehttp/guzzle": "^7.2",
+        "illuminate/auth": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/cache": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/console": "^10.0|^11.0|^12.0|^13.0",
         "illuminate/contracts": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/http": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/routing": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/view": "^10.0|^11.0|^12.0|^13.0",
         "nikic/php-parser": "^5.0",
         "phpstan/phpdoc-parser": "^2.0",
         "spatie/laravel-package-tools": "^1.16"
@@ -26,17 +34,17 @@
         "laravel/pint": "^1.13",
         "lorisleiva/laravel-actions": "^2.0|^3.0",
         "opis/json-schema": "^2.3",
-        "orchestra/testbench": "^10.0",
-        "pestphp/pest": "^3.0",
-        "pestphp/pest-plugin-arch": "^3.0",
-        "pestphp/pest-plugin-laravel": "^3.0",
+        "orchestra/testbench": "^8.0|^9.0|^10.0|^11.0",
+        "pestphp/pest": "^2.34|^3.0|^4.0|^5.0",
+        "pestphp/pest-plugin-arch": "^2.7|^3.0|^4.0|^5.0",
+        "pestphp/pest-plugin-laravel": "^2.4|^3.0|^4.0|^5.0",
         "spatie/laravel-data": "^4.0",
-        "spatie/laravel-query-builder": "^5.0|^6.0"
+        "spatie/laravel-query-builder": "^5.0|^6.0|^7.0"
     },
     "suggest": {
         "lorisleiva/laravel-actions": "Enables automatic OpenAPI documentation for routes defined as Laravel Actions (^2.0|^3.0).",
-        "spatie/laravel-data": "Required to automatically infer OpenAPI schemas from Data DTOs (^3.0|^4.0).",
-        "spatie/laravel-query-builder": "Enables automatic OpenAPI query parameter documentation from Spatie QueryBuilder calls (^5.0|^6.0)."
+        "spatie/laravel-data": "Required to automatically infer OpenAPI schemas from Data DTOs (^4.0).",
+        "spatie/laravel-query-builder": "Enables automatic OpenAPI query parameter documentation from Spatie QueryBuilder calls (^5.0|^6.0|^7.0)."
     },
     "autoload": {
         "psr-4": {

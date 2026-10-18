@@ -131,7 +131,9 @@ final class ResourceResponseInferer
         ActionAst $actionAst,
         ?DatabaseSchema $schema = null,
         array $modelTableOverrides = [],
-        ?Components $components = null
+        ?Components $components = null,
+        ?Array_ $additionalFromChain = null,
+        bool $statusResolved = false,
     ): array {
         $value = $returnStmt->expr;
         if ($value === null) {
@@ -145,13 +147,30 @@ final class ResourceResponseInferer
         }
 
         // (new FooResource($x))->additional([...]), ->response(), ->setStatusCode(...)
-        $additional = null;
+        $additional = $additionalFromChain;
+        $explicitStatus = null;
         while ($value instanceof MethodCall && $value->name instanceof Identifier
             && in_array($value->name->toString(), ['additional', 'response', 'setStatusCode', 'withResponse', 'header', 'withHeaders'], true)) {
-            if ($value->name->toString() === 'additional' && isset($value->args[0]) && $value->args[0] instanceof Node\Arg && $value->args[0]->value instanceof Array_) {
-                $additional = $value->args[0]->value;
+            $firstArg = $value->args[0] ?? null;
+            $firstValue = $firstArg instanceof Node\Arg ? $firstArg->value : null;
+            if ($value->name->toString() === 'additional' && $firstValue instanceof Array_) {
+                $additional = $firstValue;
+            }
+            if ($value->name->toString() === 'setStatusCode' && $firstValue instanceof Int_) {
+                $explicitStatus = $firstValue->value;
             }
             $value = $value->var;
+        }
+
+        if (! $statusResolved) {
+            $status = $explicitStatus ?? $this->inferStatus($value, $actionAst);
+            $result = $this->inferFromReturnStatement(new Return_($value), $actionAst, $schema, $modelTableOverrides, $components, $additional, true);
+
+            if ($status !== null && $status !== 200 && ! isset($result['status'])) {
+                $result['status'] = $status;
+            }
+
+            return $result;
         }
 
         // return $user; where $user is a typed action parameter
@@ -570,6 +589,71 @@ final class ResourceResponseInferer
         }
 
         return $result;
+    }
+
+    /**
+     * Status code of the returned value when it is not 200:
+     * `response()->json($data, 201)`, or a resource wrapping a model that was
+     * just created (`Model::create()`, `->create()` on a relation, `new Model`
+     * + `->save()`), which Laravel sends as 201.
+     */
+    private function inferStatus(Node $value, ActionAst $actionAst): ?int
+    {
+        if ($this->isResponseJsonCall($value) && $value instanceof MethodCall) {
+            $statusArg = $value->args[1] ?? null;
+
+            return $statusArg instanceof Node\Arg && $statusArg->value instanceof Int_ ? $statusArg->value->value : null;
+        }
+
+        $resourceArgument = null;
+        if ($value instanceof New_ || ($value instanceof StaticCall && $value->name instanceof Identifier && $value->name->toString() === 'make')) {
+            $argument = $value->args[0] ?? null;
+            $resourceArgument = $argument instanceof Node\Arg ? $argument->value : null;
+        }
+
+        if ($resourceArgument === null) {
+            return null;
+        }
+
+        if ($this->isCreateCall($resourceArgument)) {
+            return 201;
+        }
+
+        if (! $resourceArgument instanceof Variable || ! is_string($resourceArgument->name)) {
+            return null;
+        }
+
+        $variable = $resourceArgument->name;
+        $assignedNew = false;
+
+        foreach ($this->finder->findInstanceOf($actionAst->node, Node\Expr\Assign::class) as $assign) {
+            if (! $assign->var instanceof Variable || $assign->var->name !== $variable) {
+                continue;
+            }
+            if ($this->isCreateCall($assign->expr)) {
+                return 201;
+            }
+            if ($assign->expr instanceof New_) {
+                $assignedNew = true;
+            }
+        }
+
+        if ($assignedNew) {
+            $saves = $this->finder->find($actionAst->node, fn (Node $node) => $node instanceof MethodCall
+                && $node->var instanceof Variable && $node->var->name === $variable
+                && $node->name instanceof Identifier && $node->name->toString() === 'save');
+
+            return $saves !== [] ? 201 : null;
+        }
+
+        return null;
+    }
+
+    private function isCreateCall(Node $expr): bool
+    {
+        return ($expr instanceof StaticCall || $expr instanceof MethodCall)
+            && $expr->name instanceof Identifier
+            && in_array($expr->name->toString(), ['create', 'forceCreate', 'createQuietly', 'forceCreateQuietly'], true);
     }
 
     private function hasShape(Schema $schema): bool

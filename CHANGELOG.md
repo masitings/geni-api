@@ -6,6 +6,11 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ### Added
 
+- **`viewApiDocs` gate** (Scramble's convention): outside `local`, docs are allowed when the gate passes, 403 when it denies, and still 404 when no gate is defined. The gate receives the authenticated user (add `web` to `geni.middleware` for session users) or null.
+- **Scalar and Stoplight Elements renderers**: `'renderer' => 'scalar'` or `'elements'` (globally or per API), loading pinned CDN builds (`@scalar/api-reference@1.72.3`, `@stoplight/elements@9.0.25`), with `renderers.scalar.configuration` passed to Scalar as-is.
+- **Markdown descriptions** in the built-in portal (API overview, operation and response descriptions), rendered by a small escaping-first renderer: paragraphs, lists, headings, fenced code, inline code, bold, italic and http(s)/relative links; raw HTML stays text.
+- **Response status codes**: a resource wrapping a model that was just created (`Model::create()`, `->create()` on a relation, `new Model` + `->save()`) is documented as `201`, like Laravel sends it; `->setStatusCode(N)` and `response()->json($data, N)` use `N`.
+
 - **Extension API.** `Geni::configure($api = 'default')` with `withDocumentTransformers()`, `afterOpenApiGenerated()`, `withOperationTransformers()`, `withRuleTransformers()` and `withExceptionResponses()`, accepting instances, class names or closures. Registrations for `default` also apply to every named API. The previously unused `geni.extensions` config key (and `geni.apis.{name}.extensions`) now registers classes by the interface they implement (`DocumentTransformer`, `OperationTransformer`, `RuleTransformer`, `ExceptionToResponse`).
 - **Automatic `operationId`s** following Scramble's rules (explicit id, then route name without `api.`, then controller + method, made unique). A `PATCH` next to `PUT` on one route gets a `_patch` suffix. Generated ids do not change MCP tool names in the default `snake` naming mode.
 - `geni.servers` (and per-API `servers`): description => URL entries emitted as OpenAPI `servers`.
@@ -23,6 +28,9 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 - The docs UI lists nested properties of objects, `$ref`s, nullable unions and arrays, and shows `const` values, enums and `optional` keys.
 
 ### Changed
+
+- Composer constraints now match the supported range: tests run on Laravel 10, 11, 12 and 13 (Testbench 8–11, Pest 2–5, `spatie/laravel-query-builder` up to 7) in a PHP × Laravel CI matrix. The `illuminate/*` components Geni uses and `guzzlehttp/guzzle` (needed by MCP `tools/call`) are now declared in `require`.
+- MCP routes skip CSRF in every auth mode, so adding `web` to `geni.middleware` does not break JSON-RPC clients.
 
 - Committed specs gain `operationId` on every operation; regenerate them for `geni:check`.
 - **Resource responses are wrapped the way Laravel sends them.** A single resource is documented as `{data: ...}` (or the resource's `$wrap` key, unwrapped when `$wrap = null`) plus `with()` and `additional([...])` keys; a resource collection as `{data: [...]}`; a paginated collection as `{data, links, meta}` instead of the raw paginator shape. Response descriptions follow Scramble (`` `UserResource` ``, ``Array of `UserResource` ``, ``Paginated set of `UserResource` ``). Regenerate committed specs used by `geni:check`.
