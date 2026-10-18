@@ -123,7 +123,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
             </button>
-            <span class="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate" x-text="doc?.info?.title || '{{ $title }}'"></span>
+            <span class="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate" x-text="doc?.info?.title || @js($title)"></span>
         </div>
 
         <!-- Main Workspace -->
@@ -137,7 +137,7 @@
                     <div class="flex h-full w-64 flex-col">
                         <!-- Sidebar Header: Title, Collapse & Theme Toggle -->
                         <div class="flex items-center justify-between gap-2 p-3">
-                            <span class="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate" x-text="doc?.info?.title || '{{ $title }}'"></span>
+                            <button type="button" @click="showOverview()" class="min-w-0 text-left font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate hover:text-sky-600 dark:hover:text-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 rounded" x-text="doc?.info?.title || @js($title)"></button>
                             <div class="flex shrink-0 items-center divide-x divide-slate-200 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
                                 <button
                                     type="button"
@@ -354,6 +354,18 @@
             </button>
 
             <main class="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                <!-- API Overview (info title, version, description) -->
+                <template x-if="!selectedEndpoint && doc">
+                    <div class="mx-auto flex max-w-3xl flex-col gap-4 py-2">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white" x-text="doc.info?.title"></h1>
+                            <span x-show="doc.info?.version" class="rounded-full border border-slate-200 px-2.5 py-0.5 font-mono text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300" x-text="'v' + doc.info?.version"></span>
+                        </div>
+                        <p x-show="doc.info?.description" class="whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-400" x-text="doc.info?.description"></p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400" x-text="endpoints.length + (endpoints.length === 1 ? ' endpoint' : ' endpoints')"></p>
+                    </div>
+                </template>
+
                 <template x-if="selectedEndpoint">
                     <div class="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_440px]">
                         <!-- Center Documentation Column -->
@@ -419,7 +431,7 @@
 
                                 <!-- Description -->
                                 <template x-if="selectedEndpoint.operation.description">
-                                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed" x-text="selectedEndpoint.operation.description"></p>
+                                    <p class="whitespace-pre-line text-sm text-slate-600 dark:text-slate-400 leading-relaxed" x-text="selectedEndpoint.operation.description"></p>
                                 </template>
                             </div>
 
@@ -760,7 +772,7 @@
             <div @click="isMobileMenuOpen = false" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"></div>
             <div class="relative flex w-80 max-w-full flex-col bg-white dark:bg-slate-900 shadow-2xl">
                 <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
-                    <span class="font-bold text-sm" x-text="doc?.info?.title"></span>
+                    <button type="button" @click="showOverview(); isMobileMenuOpen = false" class="min-w-0 text-left font-bold text-sm truncate hover:text-sky-600 dark:hover:text-sky-400" x-text="doc?.info?.title"></button>
                     <button @click="isMobileMenuOpen = false" class="text-slate-400 hover:text-slate-600">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1003,8 +1015,13 @@
                             return;
                         }
                     }
-                    if (list.length > 0) {
-                        this.selectEndpoint(list[0]);
+                    // No hash: stay on the API overview, like Scramble's default UI.
+                },
+
+                showOverview() {
+                    this.selectedEndpoint = null;
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState(null, '', window.location.pathname + window.location.search);
                     }
                 },
 

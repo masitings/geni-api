@@ -273,8 +273,8 @@ final class DocumentAssembler
 
                 // Summary / title / description / operationId (FR-005)
                 $actionSummary = $this->deriveActionSummary($actionAst, $actionData);
-                $summary = $attrMethod['endpoint']['title'] ?? $actionSummary ?? $routeData['name'] ?? $normalizedUri;
-                $description = $attrMethod['endpoint']['description'] ?? $docMethod['description'] ?? null;
+                $summary = $attrMethod['endpoint']['title'] ?? $docMethod['summary'] ?? $actionSummary ?? $routeData['name'] ?? $normalizedUri;
+                $description = $attrMethod['endpoint']['description'] ?? $docMethod['description'] ?? $docMethod['docDescription'] ?? null;
                 $operationId = $attrMethod['endpoint']['operationId'] ?? $docMethod['operationId'] ?? null;
 
                 $operation = new Operation($httpMethod, $summary);

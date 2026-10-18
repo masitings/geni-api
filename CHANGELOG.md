@@ -17,6 +17,9 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ### Fixed
 
+- **Operation title and description now come from the controller method's PHPDoc, the same way Scramble reads them.** The first paragraph becomes the summary (trailing periods removed) and everything after the first blank line becomes the description. Before, Geni ignored that text and fell back to the route name (for example `api.projects.index`), so docs migrated from Scramble lost their titles and descriptions. Precedence: `#[Endpoint(title, description)]`, then `@description`, then the PHPDoc text, then the route name.
+- The docs UI now opens on an API overview (title, version and `info.description`) when the URL has no endpoint hash, instead of jumping to the first endpoint, so the API description is visible like in Scramble. Clicking the API title in the sidebar returns to it. Multi-line descriptions keep their line breaks.
+- An app name containing an apostrophe (for example `Rafi's API`) broke the Alpine expression that renders the sidebar title.
 - `geni:cache`, `geni:check`, `geni:export` and `geni:analyze` ignored `--api` and always built the default document (while storing or labelling it under the requested name). All commands and the docs controller now build documents through one `Geni\Laravel\DocumentGenerator`, and every command rejects unknown `--api` names.
 - MCP `POST` requests returned 419 in form-auth mode because the route sat behind CSRF verification; the MCP route now skips CSRF (safe because of the JSON-only requirement above).
 - JSON-RPC notifications (requests without an `id`) no longer receive a "Method not found" response.

@@ -7,7 +7,7 @@
     "paths": {
         "/api/posts": {
             "get": {
-                "summary": "posts.index",
+                "summary": "GET /api/posts - list all posts",
                 "responses": {
                     "200": {
                         "description": "Successful response"
@@ -16,7 +16,7 @@
                 "security": []
             },
             "post": {
-                "summary": "posts.store",
+                "summary": "POST /api/posts - create a new post\nUses literal validate() rules",
                 "responses": {
                     "200": {
                         "description": "Successful response",
@@ -94,7 +94,7 @@
         },
         "/api/posts/{post}": {
             "get": {
-                "summary": "posts.show",
+                "summary": "GET /api/posts/{post} - show a single post (route-model bound, returns JsonResource)",
                 "responses": {
                     "200": {
                         "description": "Successful response",
@@ -148,7 +148,7 @@
                 }
             },
             "put": {
-                "summary": "posts.update",
+                "summary": "PUT /api/posts/{post} - update a post",
                 "responses": {
                     "200": {
                         "description": "Successful response",
@@ -246,7 +246,7 @@
                 }
             },
             "delete": {
-                "summary": "posts.destroy",
+                "summary": "DELETE /api/posts/{post} - delete a post",
                 "responses": {
                     "200": {
                         "description": "Successful response"
