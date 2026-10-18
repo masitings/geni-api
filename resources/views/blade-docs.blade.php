@@ -1027,7 +1027,7 @@
                             return;
                         }
                     }
-                    // No hash: stay on the API overview, like Scramble's default UI.
+                    // No hash: stay on the API overview.
                 },
 
                 showOverview() {

@@ -10,7 +10,7 @@ use Geni\Laravel\Renderers\Concerns\ResolvesSpecUrl;
 use Illuminate\Http\Response;
 
 /**
- * Stoplight Elements (Scramble's default UI), loaded from a pinned CDN build.
+ * Stoplight Elements, loaded from a pinned CDN build.
  */
 final class ElementsRenderer implements Renderer
 {

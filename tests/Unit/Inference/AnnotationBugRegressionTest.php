@@ -13,7 +13,7 @@ use Geni\Inference\DocumentAssembler;
  * 2. @response with a short class name (e.g. "TeamResource" via a `use`
  *    import) failed to resolve to a $ref, because resolution only tried
  *    class_exists() on the raw string rather than checking the file's
- *    use-import map first, matching Scramble's behavior.
+ *    use-import map first.
  */
 test('class-level @tags PHPDoc is read and applied to operations', function () {
     $dir = sys_get_temp_dir().'/geni-annotation-regress-'.uniqid();

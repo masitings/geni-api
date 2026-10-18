@@ -50,8 +50,8 @@ use PhpParser\Parser;
 use PhpParser\ParserFactory;
 
 /**
- * Builds the component schema of a JsonResource from its `toArray()` the
- * way Scramble does: literal values, casts, nested arrays, model attributes
+ * Builds the component schema of a JsonResource from its `toArray()`:
+ * literal values, casts, nested arrays, model attributes
  * (columns + casts), relations, nested resources and collections, and the
  * conditional helpers (`when*`, `merge*`) that make a key optional.
  *

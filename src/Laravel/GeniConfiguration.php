@@ -44,7 +44,7 @@ final class GeniConfiguration
     }
 
     /**
-     * Same as a document transformer; named after Scramble's hook for easy migration.
+     * Same as a document transformer, under the name many projects already use for this hook.
      */
     public function afterOpenApiGenerated(Closure $callback): self
     {

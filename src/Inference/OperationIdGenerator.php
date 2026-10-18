@@ -7,8 +7,8 @@ namespace Geni\Inference;
 use Geni\Inference\Document\Operation;
 
 /**
- * Gives every operation without an explicit id a unique `operationId`, using
- * Scramble's rules: the route name (without a leading `api.`) when it is
+ * Gives every operation without an explicit id a unique `operationId`: the
+ * route name (without a leading `api.`) when it is
  * unique, otherwise the last two parts of the controller + method (for
  * example `post.index`), then the full controller path, then `name_index`.
  * Closures without a route name get no id.

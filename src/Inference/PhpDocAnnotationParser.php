@@ -16,7 +16,6 @@ use PHPStan\PhpDocParser\ParserConfig;
 /**
  * Parses PHPDoc docblocks using phpstan/phpdoc-parser into structured metadata.
  *
- * Implements scramble_compatibility.md section 3 matrix.
  *
  * Framework-free.
  */
@@ -108,6 +107,15 @@ final class PhpDocAnnotationParser
             // @body <type>
             if ($name === '@body') {
                 $pendingBody = $valStr;
+
+                continue;
+            }
+
+            // @summary <text> (overrides the first PHPDoc paragraph)
+            if ($name === '@summary') {
+                if ($valStr !== '') {
+                    $result['summary'] = rtrim($valStr, '.');
+                }
 
                 continue;
             }
@@ -360,7 +368,7 @@ final class PhpDocAnnotationParser
     }
 
     /**
-     * Split the free text of a docblock the way Scramble does: the first
+     * Split the free text of a docblock: the first
      * paragraph is the summary (trailing periods removed), everything after
      * the first blank line is the description.
      *

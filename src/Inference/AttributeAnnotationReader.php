@@ -10,7 +10,7 @@ use ReflectionMethod;
 /**
  * Reads PHP 8 attributes using reflection without executing attribute bodies.
  *
- * Supports both Geni\Laravel\Attributes\* and Dedoc\Scramble\Attributes\* (for drop-in compatibility).
+ * Attributes are matched by short name, so Geni\Laravel\Attributes\* and identically named attributes from other packages are both read.
  *
  * Framework-free: Core reflection only.
  */

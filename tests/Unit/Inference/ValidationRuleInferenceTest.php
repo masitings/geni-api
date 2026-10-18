@@ -228,7 +228,7 @@ test('extracts request accessor methods with defaults', function () {
     expect($extracted['accessors']['desc']['default'])->toBe(false);
 });
 
-test('maps url, sometimes and rules without a schema equivalent like Scramble', function () {
+test('maps url, sometimes and rules without a schema equivalent', function () {
     $mapper = new ValidationRuleSchemaMapper;
 
     $result = $mapper->map([

@@ -21,7 +21,7 @@ final class GeniConfigurationRegistry
     /**
      * Everything that applies to an API: `geni.extensions`, then the API's own
      * `geni.apis.{name}.extensions`, then `Geni::configure()` for `default`
-     * (shared by every API, like Scramble), then for the API itself.
+     * (shared by every API), then for the API itself.
      */
     public function resolved(string $apiName): GeniConfiguration
     {

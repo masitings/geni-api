@@ -33,7 +33,7 @@ use PhpParser\ParserFactory;
  * Reads an Eloquent model without booting it: attribute types come from the
  * migration columns, refined by `$casts` / `casts()`, and the model's
  * `$hidden` / `$visible` lists and relationship methods are collected so
- * resources and raw model responses can be documented the way Scramble does.
+ * resources and raw model responses can be documented accurately.
  *
  * @phpstan-type Relation array{model: ?string, many: bool, kind: string, foreignKey: ?string}
  * @phpstan-type ModelInfo array{

@@ -4,13 +4,27 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-18
+
+### Added
+
+- `@summary <text>` in a controller method's PHPDoc sets the operation title, overriding the first paragraph (`#[Endpoint(title: ...)]` still wins). Laravel Actions without it keep the title derived from the class name.
+
+### Removed
+
+- Unused config keys `api_domain`, `security_strategy` and `renderers.blade.dark_mode`. They were never read; leaving them in a published config file has no effect.
+
+### Changed
+
+- Wording in the README, CHANGELOG, config comments and code comments no longer refers to other documentation generators.
+
 ## [3.0.1] - 2026-10-18
 
 Same code as 3.0.0. The `v3.0.0` tag was first pushed on the 2.0.1 commit and Packagist kept serving that build after the tag was moved, so the release is republished under a new version. Use 3.0.1 or later.
 
 ## [3.0.0] - 2026-10-18
 
-This release brings the generated documents close to what Scramble produces, fixes the security issues found in a review of 2.0.1, and is tested on Laravel 10, 11, 12 and 13.
+This release makes the generated documents describe responses exactly as Laravel sends them, fixes the security issues found in a review of 2.0.1, and is tested on Laravel 10, 11, 12 and 13.
 
 ### Upgrading from 2.x
 
@@ -23,16 +37,16 @@ This release brings the generated documents close to what Scramble produces, fix
 
 ### Added
 
-- **`viewApiDocs` gate** (Scramble's convention): outside `local`, docs are allowed when the gate passes, 403 when it denies, and still 404 when no gate is defined. The gate receives the authenticated user (add `web` to `geni.middleware` for session users) or null.
+- **`viewApiDocs` gate**: outside `local`, docs are allowed when the gate passes, 403 when it denies, and still 404 when no gate is defined. The gate receives the authenticated user (add `web` to `geni.middleware` for session users) or null.
 - **Scalar and Stoplight Elements renderers**: `'renderer' => 'scalar'` or `'elements'` (globally or per API), loading pinned CDN builds (`@scalar/api-reference@1.72.3`, `@stoplight/elements@9.0.25`), with `renderers.scalar.configuration` passed to Scalar as-is.
 - **Markdown descriptions** in the built-in portal (API overview, operation and response descriptions), rendered by a small escaping-first renderer: paragraphs, lists, headings, fenced code, inline code, bold, italic and http(s)/relative links; raw HTML stays text.
 - **Response status codes**: a resource wrapping a model that was just created (`Model::create()`, `->create()` on a relation, `new Model` + `->save()`) is documented as `201`, like Laravel sends it; `->setStatusCode(N)` and `response()->json($data, N)` use `N`.
 
 - **Extension API.** `Geni::configure($api = 'default')` with `withDocumentTransformers()`, `afterOpenApiGenerated()`, `withOperationTransformers()`, `withRuleTransformers()` and `withExceptionResponses()`, accepting instances, class names or closures. Registrations for `default` also apply to every named API. The previously unused `geni.extensions` config key (and `geni.apis.{name}.extensions`) now registers classes by the interface they implement (`DocumentTransformer`, `OperationTransformer`, `RuleTransformer`, `ExceptionToResponse`).
-- **Automatic `operationId`s** following Scramble's rules (explicit id, then route name without `api.`, then controller + method, made unique). A `PATCH` next to `PUT` on one route gets a `_patch` suffix. Generated ids do not change MCP tool names in the default `snake` naming mode.
+- **Automatic `operationId`s** (explicit id, then route name without `api.`, then controller + method, made unique). A `PATCH` next to `PUT` on one route gets a `_patch` suffix. Generated ids do not change MCP tool names in the default `snake` naming mode.
 - `geni.servers` (and per-API `servers`): description => URL entries emitted as OpenAPI `servers`.
 
-- **JsonResource inference now matches Scramble.** Each `toArray()` key is typed from what it returns:
+- **Full JsonResource inference.** Each `toArray()` key is typed from what it returns:
   - model attributes from migration columns refined by `$casts` / `casts()` (booleans, arrays, dates, enum classes as component refs), nullable columns as `["type", "null"]`;
   - literals with `const`, `(bool)`/`(int)`/... casts, nested arrays (objects with `required`), string concatenation, ternaries, `match`, common helpers (`route()`, `url()`, `count()`, ...) and Carbon formatters (`?->toIso8601String()` stays nullable);
   - relations (`$this->posts`, `whenLoaded('posts')`) as arrays of / references to the related model, nullable for `belongsTo` with a nullable foreign key;
@@ -50,7 +64,7 @@ This release brings the generated documents close to what Scramble produces, fix
 - MCP routes skip CSRF in every auth mode, so adding `web` to `geni.middleware` does not break JSON-RPC clients.
 
 - Committed specs gain `operationId` on every operation; regenerate them for `geni:check`.
-- **Resource responses are wrapped the way Laravel sends them.** A single resource is documented as `{data: ...}` (or the resource's `$wrap` key, unwrapped when `$wrap = null`) plus `with()` and `additional([...])` keys; a resource collection as `{data: [...]}`; a paginated collection as `{data, links, meta}` instead of the raw paginator shape. Response descriptions follow Scramble (`` `UserResource` ``, ``Array of `UserResource` ``, ``Paginated set of `UserResource` ``). Regenerate committed specs used by `geni:check`.
+- **Resource responses are wrapped the way Laravel sends them.** A single resource is documented as `{data: ...}` (or the resource's `$wrap` key, unwrapped when `$wrap = null`) plus `with()` and `additional([...])` keys; a resource collection as `{data: [...]}`; a paginated collection as `{data, links, meta}` instead of the raw paginator shape. Response descriptions name the resource (`` `UserResource` ``, ``Array of `UserResource` ``, ``Paginated set of `UserResource` ``). Regenerate committed specs used by `geni:check`.
 - `@response SomeResource` / `#[Response(type: ...)]` naming a resource, model or Data class now produces the same wrapped, fully inferred schema as a returned value instead of a bare `$ref`.
 - Unresolvable resource keys still fall back to `string` with an `x-geni-unresolved` diagnostic.
 
@@ -70,8 +84,8 @@ This release brings the generated documents close to what Scramble produces, fix
 
 - A declared return type such as `Response` was emitted as an OpenAPI type (`{"type": "Response"}`), which is invalid. `response()->noContent()` is now documented as `204 No content`, and an operation no longer gets a default `200` next to another success response.
 - Operation and parameter extensions (`x-unauthenticated`, `x-api`, `x-geni-unresolved`) were nested under an extra `x-geni-unresolved` key.
-- **Operation title and description now come from the controller method's PHPDoc, the same way Scramble reads them.** The first paragraph becomes the summary (trailing periods removed) and everything after the first blank line becomes the description. Before, Geni ignored that text and fell back to the route name (for example `api.projects.index`), so docs migrated from Scramble lost their titles and descriptions. Precedence: `#[Endpoint(title, description)]`, then `@description`, then the PHPDoc text, then the route name.
-- The docs UI now opens on an API overview (title, version and `info.description`) when the URL has no endpoint hash, instead of jumping to the first endpoint, so the API description is visible like in Scramble. Clicking the API title in the sidebar returns to it. Multi-line descriptions keep their line breaks.
+- **Operation title and description now come from the controller method's PHPDoc.** The first paragraph becomes the summary (trailing periods removed) and everything after the first blank line becomes the description. Before, Geni ignored that text and fell back to the route name (for example `api.projects.index`), so existing PHPDoc titles and descriptions were lost. Precedence: `#[Endpoint(title, description)]`, then `@description`, then the PHPDoc text, then the route name.
+- The docs UI now opens on an API overview (title, version and `info.description`) when the URL has no endpoint hash, instead of jumping to the first endpoint, so the API description is visible. Clicking the API title in the sidebar returns to it. Multi-line descriptions keep their line breaks.
 - An app name containing an apostrophe (for example `Rafi's API`) broke the Alpine expression that renders the sidebar title.
 - `geni:cache`, `geni:check`, `geni:export` and `geni:analyze` ignored `--api` and always built the default document (while storing or labelling it under the requested name). All commands and the docs controller now build documents through one `Geni\Laravel\DocumentGenerator`, and every command rejects unknown `--api` names.
 - MCP `POST` requests returned 419 in form-auth mode because the route sat behind CSRF verification; the MCP route now skips CSRF (safe because of the JSON-only requirement above).
@@ -88,7 +102,7 @@ This release brings the generated documents close to what Scramble produces, fix
 - Clarified documentation wording to emphasize standard OpenAPI docblock conventions and seamless migration from other generators.
 - Added official trademark disclaimers in README and documentation.
 - Linked full documentation references directly to [geni.masiting.dev](https://geni.masiting.dev/).
-- Removed internal test dependency `dedoc/scramble` to keep development dependencies clean and completely self-contained.
+- Removed an internal test-only comparison dependency to keep development dependencies clean and completely self-contained.
 - Expanded Model Context Protocol (MCP) documentation detailing real-world autonomous AI workflows and execution safety.
 
 ## [2.0.0] - 2026-09-16
@@ -312,7 +326,7 @@ This release brings the generated documents close to what Scramble produces, fix
 ### Fixed
 
 - Class-level PHPDoc (`@tags`, `@deprecated`, `@mixin`, etc.) was silently ignored, `DocumentAssembler` hardcoded the parsed class docblock to an empty array instead of actually parsing the controller class's own doc comment. `ActionAst` now carries the declaring class's doc comment so it can be parsed.
-- `@response ShortClassName` (a short name resolved via the file's own `use` imports, as Scramble supports) failed to resolve to a `$ref` and silently fell back to `type: string`. Resolution now checks the action's `use` import map before falling back to the raw string.
+- `@response ShortClassName` (a short name resolved via the file's own `use` imports) failed to resolve to a `$ref` and silently fell back to `type: string`. Resolution now checks the action's `use` import map before falling back to the raw string.
 
 ## [0.3.1] - 2026-09-14
 
@@ -379,7 +393,7 @@ Initial public release of Geni: a static-analysis OpenAPI documentation generato
 - Error response inference: 422 (validation), 403 (authorization/Gate), 404 (model binding), abort codes, and `@throws` exception status mappings.
 - Reusable schema registration under `components.schemas` with `$ref` pointers.
 
-#### Phase 5: Scramble-Compatible Annotations
+#### Phase 5: PHPDoc Annotations & Attributes
 - PHPDoc parsing (`phpstan/phpdoc-parser`): `@response`, `@status`/`@body`, `@description`, `@var`, `@example`, `@format`, `@default`, `@query`, `@ignoreParam`, `@hidden`, `@deprecated`/`@notDeprecated`, `@operationId`, `@requestMediaType`, `@tags`, `@throws`, `@unauthenticated`, and `@mixin`/`@property` (Resource backing model resolution).
 - PHP 8 attributes (`Geni\Laravel\Attributes\*`):
   - Group 1 (Markers): `#[ExcludeRouteFromDocs]`, `#[ExcludeAllRoutesFromDocs]`, `#[Hidden]`, `#[IgnoreParam]`, `#[IgnoreResponse]`.
@@ -399,7 +413,7 @@ Initial public release of Geni: a static-analysis OpenAPI documentation generato
 - Second renderer: `ElementsRenderer` (`@stoplight/elements`) with publishable view.
 - GitHub Actions CI workflow with automated tests and `geni:check` drift detection.
 
-### Documented Divergences from Scramble
+### Static Analysis Limitations
 1. **Validation rules parsed, not evaluated**: `Rule::in($variable)` with non-literal variables records a diagnostic and falls back to base type rather than evaluating runtime values. (Workaround: inline values or add `@var`).
 2. **Column types from migrations, not live database**: Columns created dynamically in loops or conditionals require `schema_overrides`.
 3. **`exists` rule resolved via migrations**: Referenced column types are resolved from migration history rather than live database introspection.

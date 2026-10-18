@@ -651,7 +651,7 @@ final class DocumentAssembler
 
         // Resolve a short class name against the action's own `use` imports first
         // (e.g. `@response TeamResource` where the file has `use App\Http\Resources\TeamResource;`),
-        // matching Scramble's behavior, before falling back to the raw string.
+        // before falling back to the raw string.
         $resolved = $actionAst?->useImports[$clean] ?? $clean;
 
         // Resources, models and Data objects are inferred (and wrapped) like returned values

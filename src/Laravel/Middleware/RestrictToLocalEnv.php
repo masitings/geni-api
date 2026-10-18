@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Gate;
 
 /**
  * Docs routes are open in the `local` environment. Elsewhere they are
- * allowed when the application defines a `viewApiDocs` gate that passes
- * (the same convention as Scramble), forbidden when that gate denies, and
+ * allowed when the application defines a `viewApiDocs` gate that passes,
+ * forbidden when that gate denies, and
  * hidden (404) when no gate is defined.
  */
 final class RestrictToLocalEnv

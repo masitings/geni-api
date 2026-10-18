@@ -22,7 +22,7 @@ class OperationIdTest extends TestCase
         });
     }
 
-    public function test_operation_ids_follow_scramble(): void
+    public function test_operation_ids_follow_the_documented_order(): void
     {
         $paths = json_decode((string) json_encode(app(DocumentGenerator::class)->generate()), true)['paths'];
 

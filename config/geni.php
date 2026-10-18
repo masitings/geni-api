@@ -44,17 +44,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | API Domain
-    |--------------------------------------------------------------------------
-    |
-    | The domain under which API routes are served, used for server/url resolution.
-    |
-    */
-
-    'api_domain' => null,
-
-    /*
-    |--------------------------------------------------------------------------
     | Servers
     |--------------------------------------------------------------------------
     |
@@ -101,8 +90,8 @@ return [
     |
     | The renderer implementation used for the docs UI route.
     | Supported built-in options: 'blade' (default standalone portal),
-    | 'scalar' (Scalar API Reference), 'elements' (Stoplight Elements, as in
-    | Scramble), or a custom class name implementing Geni\Laravel\Renderer.
+    | 'scalar' (Scalar API Reference), 'elements' (Stoplight Elements), or a
+    | custom class name implementing Geni\Laravel\Renderer.
     | Per API: set `renderer` inside an entry of `apis`.
     |
     */
@@ -111,7 +100,6 @@ return [
 
     'renderers' => [
         'blade' => [
-            'dark_mode' => true,
             'tailwind_cdn_url' => 'https://cdn.tailwindcss.com/3.4.17',
             'alpine_cdn_url' => 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js',
             'custom_css' => null,
@@ -126,7 +114,7 @@ return [
             ],
         ],
 
-        // 'renderer' => 'elements': Stoplight Elements (Scramble's default UI).
+        // 'renderer' => 'elements': Stoplight Elements.
         'elements' => [
             'script_url' => null,
             'stylesheet_url' => null,
@@ -169,7 +157,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Docs routes 404 outside the 'local' environment by default. Define a
-    | `viewApiDocs` gate (as with Scramble) to decide access elsewhere:
+    | `viewApiDocs` gate to decide access elsewhere:
     |
     |     Gate::define('viewApiDocs', fn (?User $user) => $user?->isAdmin());
     |
@@ -272,8 +260,6 @@ return [
     */
 
     'middleware_security_schemes' => [],
-
-    'security_strategy' => null,
 
     /*
     |--------------------------------------------------------------------------

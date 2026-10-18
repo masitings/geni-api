@@ -9,8 +9,8 @@ use Tests\Fixtures\Resources\Controllers\UserController;
 use Tests\TestCase;
 
 /**
- * Expectations mirror what Scramble generates for the same fixture app
- * (tests/Fixtures/Resources), so documents migrated from Scramble keep their shape.
+ * Expected schemas for the fixture app in tests/Fixtures/Resources, matching
+ * what Laravel actually serializes for each resource and response.
  */
 class ResourceInferenceTest extends TestCase
 {
