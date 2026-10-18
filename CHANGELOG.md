@@ -4,6 +4,19 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-18
+
+This release brings the generated documents close to what Scramble produces, fixes the security issues found in a review of 2.0.1, and is tested on Laravel 10, 11, 12 and 13.
+
+### Upgrading from 2.x
+
+1. **MCP over HTTP:** `tools/call` on `POST docs/api/mcp` is now disabled. To keep it, set `GENI_MCP_HTTP_EXECUTION=true` (or `geni.mcp.http_execution`). If you published `config/geni.php`, add `'http_execution' => (bool) env('GENI_MCP_HTTP_EXECUTION', false),` to the `mcp` block. MCP clients must send `Content-Type: application/json`. `geni:mcp:serve` is unaffected.
+2. **Committed specs:** resource responses are now wrapped in `data`, paginated collections use `{data, links, meta}`, create endpoints are `201`, and every operation has an `operationId`. Regenerate every spec checked by `geni:check`: `php artisan geni:export --path=openapi.json` (plus `--api=` for each named API).
+3. **Docs access outside `local`:** define a `viewApiDocs` gate to open the docs there (403 when it denies). Without a gate nothing changes (404).
+4. **Docs credentials:** blank `GENI_DOCS_USERNAME` / `GENI_DOCS_PASSWORD` now mean "no credentials gate"; setting only one of them locks the docs. Make sure both are set if you rely on the gate.
+5. **Unknown names:** `?api=` values and `--api` options that are not `default` or a key of `geni.apis` now return 404 / fail instead of silently using the default document.
+6. **Custom code reading the document:** operation extensions are now top-level keys (`x-unauthenticated`, `x-api`, `x-geni-unresolved`) instead of being nested under `x-geni-unresolved`; resource schemas list `required` keys and may use `anyOf` / `const`.
+
 ### Added
 
 - **`viewApiDocs` gate** (Scramble's convention): outside `local`, docs are allowed when the gate passes, 403 when it denies, and still 404 when no gate is defined. The gate receives the authenticated user (add `web` to `geni.middleware` for session users) or null.

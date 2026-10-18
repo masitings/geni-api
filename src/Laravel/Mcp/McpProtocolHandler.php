@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Geni\Laravel\Mcp;
 
+use Composer\InstalledVersions;
 use Geni\Inference\Document\OpenApiDocument;
 use Throwable;
 
@@ -98,7 +99,7 @@ final class McpProtocolHandler
             ],
             'serverInfo' => [
                 'name' => 'geni-mcp',
-                'version' => '1.0.0',
+                'version' => $this->packageVersion(),
             ],
         ]);
     }
@@ -162,6 +163,15 @@ final class McpProtocolHandler
         $callResult = $this->executor->execute($targetTool, $arguments, $execConfig);
 
         return $this->successResponse($id, $callResult);
+    }
+
+    private function packageVersion(): string
+    {
+        if (class_exists(InstalledVersions::class) && InstalledVersions::isInstalled('masitings/geni-api')) {
+            return ltrim((string) InstalledVersions::getPrettyVersion('masitings/geni-api'), 'v');
+        }
+
+        return 'dev';
     }
 
     /**
