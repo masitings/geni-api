@@ -55,6 +55,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Servers
+    |--------------------------------------------------------------------------
+    |
+    | OpenAPI `servers`, as description => URL. Relative URLs go through url().
+    | Paths in the document stay absolute (e.g. /api/users), so point servers
+    | at the host, not the API prefix. Can also be set per entry in `apis`.
+    |
+    | Example: ['Production' => 'https://api.example.com', 'Local' => '/']
+    |
+    */
+
+    'servers' => null,
+
+    /*
+    |--------------------------------------------------------------------------
     | Route Resolver Closure
     |--------------------------------------------------------------------------
     |
@@ -340,6 +355,19 @@ return [
             'allow_caller_headers' => false,
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Extensions
+    |--------------------------------------------------------------------------
+    |
+    | Classes implementing Geni\Laravel\Contracts\DocumentTransformer,
+    | Geni\Laravel\Contracts\OperationTransformer, Geni\Inference\RuleTransformer
+    | or Geni\Inference\ExceptionToResponse, applied to every API (add an
+    | `extensions` list inside an entry of `apis` for one API only). The same
+    | can be registered in code with Geni::configure() in a service provider.
+    |
+    */
 
     'extensions' => [],
 ];

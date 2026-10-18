@@ -35,6 +35,9 @@ final class Operation implements JsonSerializable
 
     public ?string $operationId = null;
 
+    /** True when operationId was derived from the route rather than set explicitly. */
+    public bool $operationIdGenerated = false;
+
     public ?bool $deprecated = null;
 
     /** @var list<array<string, list<string>>>|null */

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Geni\Laravel\Commands;
 
-use Geni\Inference\DocumentAssembler;
 use Geni\Laravel\Commands\Concerns\ResolvesApiOption;
 use Geni\Laravel\DocumentGenerator;
 use Illuminate\Console\Command;
@@ -26,8 +25,9 @@ final class AnalyzeCommand extends Command
             return self::FAILURE;
         }
 
-        $assembler = new DocumentAssembler;
-        app(DocumentGenerator::class)->generate($apiName, $assembler);
+        $generator = app(DocumentGenerator::class);
+        $assembler = $generator->assemblerFor($apiName);
+        $generator->generate($apiName, $assembler);
 
         $diagnostics = $assembler->recordedDiagnostics;
 

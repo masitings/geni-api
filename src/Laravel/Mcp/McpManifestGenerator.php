@@ -88,7 +88,9 @@ final class McpManifestGenerator
             return $operation->operationId;
         }
 
-        if (! empty($operation->operationId)) {
+        // Only explicit ids rename tools in snake mode, so tool names stay stable
+        // now that every operation gets a generated operationId.
+        if (! empty($operation->operationId) && ! $operation->operationIdGenerated) {
             // Convert camelCase or PascalCase to snake_case
             $snake = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $operation->operationId) ?? $operation->operationId);
 

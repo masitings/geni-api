@@ -53,6 +53,11 @@ class GeniServiceProvider extends PackageServiceProvider
             ->hasViews();
     }
 
+    public function packageRegistered(): void
+    {
+        $this->app->singleton(GeniConfigurationRegistry::class);
+    }
+
     public function packageBooted(): void
     {
         $this->loadViewsFrom(dirname(__DIR__, 2).'/resources/views', 'geni');

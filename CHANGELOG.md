@@ -6,6 +6,10 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ### Added
 
+- **Extension API.** `Geni::configure($api = 'default')` with `withDocumentTransformers()`, `afterOpenApiGenerated()`, `withOperationTransformers()`, `withRuleTransformers()` and `withExceptionResponses()`, accepting instances, class names or closures. Registrations for `default` also apply to every named API. The previously unused `geni.extensions` config key (and `geni.apis.{name}.extensions`) now registers classes by the interface they implement (`DocumentTransformer`, `OperationTransformer`, `RuleTransformer`, `ExceptionToResponse`).
+- **Automatic `operationId`s** following Scramble's rules (explicit id, then route name without `api.`, then controller + method, made unique). A `PATCH` next to `PUT` on one route gets a `_patch` suffix. Generated ids do not change MCP tool names in the default `snake` naming mode.
+- `geni.servers` (and per-API `servers`): description => URL entries emitted as OpenAPI `servers`.
+
 - **JsonResource inference now matches Scramble.** Each `toArray()` key is typed from what it returns:
   - model attributes from migration columns refined by `$casts` / `casts()` (booleans, arrays, dates, enum classes as component refs), nullable columns as `["type", "null"]`;
   - literals with `const`, `(bool)`/`(int)`/... casts, nested arrays (objects with `required`), string concatenation, ternaries, `match`, common helpers (`route()`, `url()`, `count()`, ...) and Carbon formatters (`?->toIso8601String()` stays nullable);
@@ -20,6 +24,7 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ### Changed
 
+- Committed specs gain `operationId` on every operation; regenerate them for `geni:check`.
 - **Resource responses are wrapped the way Laravel sends them.** A single resource is documented as `{data: ...}` (or the resource's `$wrap` key, unwrapped when `$wrap = null`) plus `with()` and `additional([...])` keys; a resource collection as `{data: [...]}`; a paginated collection as `{data, links, meta}` instead of the raw paginator shape. Response descriptions follow Scramble (`` `UserResource` ``, ``Array of `UserResource` ``, ``Paginated set of `UserResource` ``). Regenerate committed specs used by `geni:check`.
 - `@response SomeResource` / `#[Response(type: ...)]` naming a resource, model or Data class now produces the same wrapped, fully inferred schema as a returned value instead of a bare `$ref`.
 - Unresolvable resource keys still fall back to `string` with an `x-geni-unresolved` diagnostic.

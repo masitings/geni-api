@@ -138,6 +138,8 @@ final class DocumentAssembler
          */
         $schemeRules = $securityConfig['rules'] ?? [];
 
+        $operationIds = new OperationIdGenerator;
+
         // Process routes in order of declaration (FR-013, fsd B7.8)
         foreach ($routes as $routeData) {
             $actionData = $routeData['action'];
@@ -272,6 +274,14 @@ final class DocumentAssembler
                 || $this->middlewareMatches($routeMiddleware, $authPatterns);
 
             $isUnauthenticated = ! empty($docMethod['unauthenticated']);
+
+            $primaryMethod = null;
+            foreach ($routeData['methods'] as $method) {
+                if (strtoupper($method) !== 'HEAD') {
+                    $primaryMethod = strtoupper($method);
+                    break;
+                }
+            }
 
             foreach ($routeData['methods'] as $method) {
                 $httpMethod = strtoupper($method);
@@ -440,10 +450,13 @@ final class DocumentAssembler
                 }
 
                 $pathItem->add($operation);
+                $operationIds->add($operation, $routeData['name'] ?? null, $actionData, $httpMethod === $primaryMethod);
             }
 
             $document->paths->add($pathItem);
         }
+
+        $operationIds->assign();
 
         return $document;
     }

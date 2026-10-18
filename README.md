@@ -118,6 +118,43 @@ Configure Claude Desktop or Claude Code to run Geni's built-in MCP server:
   - `POST /docs/api/mcp` accepts JSON-RPC 2.0 requests sent as `application/json` (`initialize`, `tools/list`, `tools/call`).
   - `tools/call` over HTTP is off by default because it runs endpoints with the server's configured credentials for anyone who can open the docs. Enable it with `GENI_MCP_HTTP_EXECUTION=true` (`geni.mcp.http_execution`). `geni:mcp:serve` is not affected.
 
+## Customizing the Document
+
+Register transformers in a service provider's `boot()` method. Registrations for `default` also apply to every API in `geni.apis`; pass a name to target one API.
+
+```php
+use Geni\Inference\Document\OpenApiDocument;
+use Geni\Inference\Document\Operation;
+use Geni\Laravel\DiscoveredRoute;
+use Geni\Laravel\Geni;
+
+Geni::configure()
+    ->withDocumentTransformers(function (OpenApiDocument $document, string $apiName) {
+        $document->info->description = 'Public API for Acme.';
+    })
+    ->withOperationTransformers(function (Operation $operation, DiscoveredRoute $route) {
+        if (in_array('throttle:api', $route->middleware, true)) {
+            $operation->responses['429'] = ['description' => 'Too many requests'];
+        }
+    })
+    ->withRuleTransformers(Ipv4CidrRule::class)          // Geni\Inference\RuleTransformer
+    ->withExceptionResponses(PaymentRequiredMapper::class); // Geni\Inference\ExceptionToResponse
+
+Geni::configure('v2')->afterOpenApiGenerated(fn (OpenApiDocument $document) => $document->info->title .= ' (beta)');
+```
+
+Classes implementing `Geni\Laravel\Contracts\DocumentTransformer`, `Geni\Laravel\Contracts\OperationTransformer`, `Geni\Inference\RuleTransformer` or `Geni\Inference\ExceptionToResponse` can also be listed in `config('geni.extensions')` (or `geni.apis.{name}.extensions`).
+
+`servers` are configured as description => URL:
+
+```php
+'servers' => ['Production' => 'https://api.example.com', 'Local' => '/'],
+```
+
+### Operation IDs
+
+Every operation gets an `operationId`, chosen the way Scramble does: `#[Endpoint(operationId: ...)]` or `@operationId`, then the route name without a leading `api.` (`api.users.index` → `users.index`), then the controller and method (`UserController@show` → `user.show`), made unique across the document. A `PATCH` documented next to `PUT` on the same route gets a `_patch` suffix. Generated ids do not rename MCP tools; set `geni.mcp.tool_naming` to `operation_id` to use them.
+
 ## Multi-Version API Documentation
 
 Document multiple versions (e.g. `v1`, `v2`) or separate domains independently with automatic version-switching in the UI:

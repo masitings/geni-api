@@ -13,6 +13,7 @@
                         "description": "Successful response"
                     }
                 },
+                "operationId": "posts.index",
                 "security": []
             },
             "post": {
@@ -56,6 +57,7 @@
                         }
                     }
                 },
+                "operationId": "posts.store",
                 "security": [],
                 "requestBody": {
                     "required": true,
@@ -133,6 +135,7 @@
                         }
                     }
                 },
+                "operationId": "posts.show",
                 "security": [],
                 "parameters": [
                     {
@@ -205,6 +208,7 @@
                         }
                     }
                 },
+                "operationId": "posts.update",
                 "security": [],
                 "parameters": [
                     {
@@ -268,6 +272,7 @@
                         }
                     }
                 },
+                "operationId": "posts.destroy",
                 "security": [],
                 "parameters": [
                     {
