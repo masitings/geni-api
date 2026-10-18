@@ -568,19 +568,19 @@
                                         <span class="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">application/json</span>
                                     </div>
                                     <div class="text-xs">
-                                        <template x-for="(prop, name) in (resolvedRequestSchema?.properties || {})" :key="name">
-                                            <div class="flex flex-col gap-1.5 border-b border-slate-200/80 p-3.5 last:border-b-0 dark:border-slate-800">
+                                        <template x-for="row in schemaRows(requestBodySchema)" :key="row.key">
+                                            <div class="flex flex-col gap-1.5 border-b border-slate-200/80 p-3.5 last:border-b-0 dark:border-slate-800" :style="'padding-left: ' + (0.875 + row.depth * 1.25) + 'rem'">
                                                 <div class="flex flex-wrap items-center gap-2">
-                                                    <code class="font-mono text-xs font-semibold text-slate-900 dark:text-white" x-text="name"></code>
-                                                    <span x-show="(resolvedRequestSchema.required || []).includes(name)" class="rounded border border-rose-500/30 px-1.5 py-0 text-[10px] font-mono text-rose-600 dark:text-rose-400">required</span>
-                                                    <span x-show="!(resolvedRequestSchema.required || []).includes(name)" class="text-[10px] font-mono text-slate-400">optional</span>
-                                                    <span class="rounded bg-slate-100 px-1.5 py-0 text-[10px] font-mono text-slate-600 dark:bg-slate-800 dark:text-slate-400" x-text="Array.isArray(prop.type) ? prop.type.join(' · ') : (prop.type || 'any')"></span>
+                                                    <code class="font-mono text-xs font-semibold text-slate-900 dark:text-white" x-text="row.name"></code>
+                                                    <span x-show="row.required" class="rounded border border-rose-500/30 px-1.5 py-0 text-[10px] font-mono text-rose-600 dark:text-rose-400">required</span>
+                                                    <span x-show="!row.required" class="text-[10px] font-mono text-slate-400">optional</span>
+                                                    <span class="rounded bg-slate-100 px-1.5 py-0 text-[10px] font-mono text-slate-600 dark:bg-slate-800 dark:text-slate-400" x-text="row.label"></span>
                                                 </div>
-                                                <template x-if="prop.description">
-                                                    <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed" x-text="prop.description"></p>
+                                                <template x-if="row.description">
+                                                    <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed" x-text="row.description"></p>
                                                 </template>
-                                                <template x-if="prop.default !== undefined">
-                                                    <div class="font-mono text-[11px] text-slate-400">default: <span class="text-slate-700 dark:text-slate-300" x-text="JSON.stringify(prop.default)"></span></div>
+                                                <template x-if="row.default !== undefined">
+                                                    <div class="font-mono text-[11px] text-slate-400">default: <span class="text-slate-700 dark:text-slate-300" x-text="JSON.stringify(row.default)"></span></div>
                                                 </template>
                                             </div>
                                         </template>
@@ -615,11 +615,11 @@
                                 </div>
 
                                 <template x-if="activeResponse?.description">
-                                    <p class="border-b border-slate-200/80 px-3 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400" x-text="activeResponse.description"></p>
+                                    <p class="border-b border-slate-200/80 px-3 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400" x-text="activeResponse.description.replaceAll('`', '')"></p>
                                 </template>
 
                                 <!-- Schema / Raw tab switcher (only shown when a schema table is available) -->
-                                <template x-if="resolvedResponseSchema?.properties">
+                                <template x-if="responseRows.length > 0">
                                     <div class="border-b border-slate-200/80 bg-slate-50/50 px-3 py-2 dark:border-slate-800 dark:bg-slate-800/20">
                                         <div class="flex w-fit items-center gap-1 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800">
                                             <button
@@ -649,23 +649,26 @@
                                 </template>
 
                                 <!-- Response Schema Table -->
-                                <template x-if="resolvedResponseSchema?.properties && responseViewMode === 'schema'">
+                                <template x-if="responseRows.length > 0 && responseViewMode === 'schema'">
                                     <div class="border-b border-slate-200/80 text-xs dark:border-slate-800">
-                                        <template x-for="(prop, name) in resolvedResponseSchema.properties" :key="name">
-                                            <div class="flex flex-col gap-1.5 border-b border-slate-200/80 p-3 last:border-b-0 dark:border-slate-800">
+                                        <template x-for="row in responseRows" :key="row.key">
+                                            <div class="flex flex-col gap-1.5 border-b border-slate-200/80 p-3 last:border-b-0 dark:border-slate-800" :style="'padding-left: ' + (0.75 + row.depth * 1.25) + 'rem'">
                                                 <div class="flex flex-wrap items-center justify-between gap-2">
-                                                    <code class="font-mono text-xs font-semibold text-slate-900 dark:text-white" x-text="name"></code>
-                                                    <span class="rounded bg-slate-100 px-1.5 py-0 text-[10px] font-mono text-slate-600 dark:bg-slate-800 dark:text-slate-400" x-text="Array.isArray(prop.type) ? prop.type.join(' · ') : (prop.type || 'any')"></span>
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <code class="font-mono text-xs font-semibold text-slate-900 dark:text-white" x-text="row.name"></code>
+                                                        <span x-show="!row.required" class="text-[10px] font-mono text-slate-400">optional</span>
+                                                    </div>
+                                                    <span class="rounded bg-slate-100 px-1.5 py-0 text-[10px] font-mono text-slate-600 dark:bg-slate-800 dark:text-slate-400" x-text="row.label"></span>
                                                 </div>
-                                                <template x-if="prop.description">
-                                                    <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed" x-text="prop.description"></p>
+                                                <template x-if="row.description">
+                                                    <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed" x-text="row.description"></p>
                                                 </template>
                                             </div>
                                         </template>
                                     </div>
                                 </template>
 
-                                <template x-if="responseExample && (!resolvedResponseSchema?.properties || responseViewMode === 'raw')">
+                                <template x-if="responseExample && (responseRows.length === 0 || responseViewMode === 'raw')">
                                     <div class="relative">
                                         <button
                                             type="button"
@@ -1129,6 +1132,10 @@
                     return this.resolveSchema(this.activeResponseSchema, this.doc);
                 },
 
+                get responseRows() {
+                    return this.activeResponseSchema ? this.schemaRows(this.activeResponseSchema) : [];
+                },
+
                 get responseExample() {
                     return this.activeResponseSchema ? this.buildExample(this.activeResponseSchema, this.doc) : null;
                 },
@@ -1327,10 +1334,101 @@
                     return schema;
                 },
 
+                refName(schema) {
+                    return schema?.$ref ? schema.$ref.split('/').pop() : null;
+                },
+
+                nonNullOptions(schema) {
+                    return (schema?.anyOf || []).filter(option => !(option.type === 'null' && !option.$ref));
+                },
+
+                typeLabel(schema) {
+                    if (!schema) return 'any';
+                    if (schema.$ref) {
+                        const target = this.resolveSchema(schema, this.doc);
+                        return this.refName(schema) + (target?.enum?.length ? ' ∈ ' + target.enum.map(value => JSON.stringify(value)).join(', ') : '');
+                    }
+                    if (schema.anyOf) return schema.anyOf.map(option => this.typeLabel(option)).join(' | ');
+                    let label;
+                    if (Array.isArray(schema.type)) {
+                        label = schema.type.map(type => type === 'array' && schema.items ? 'array<' + this.typeLabel(schema.items) + '>' : type).join(' | ');
+                    } else if (schema.type === 'array') {
+                        label = schema.items ? 'array<' + this.typeLabel(schema.items) + '>' : 'array';
+                    } else {
+                        label = schema.type || 'any';
+                    }
+                    if (schema.format) label += ' (' + schema.format + ')';
+                    if (schema.const !== undefined) label += ' = ' + JSON.stringify(schema.const);
+                    else if (schema.enum && schema.enum.length) label += ' ∈ ' + schema.enum.map(value => JSON.stringify(value)).join(', ');
+                    return label;
+                },
+
+                /**
+                 * The object schema whose properties should be listed under a field:
+                 * follows $ref, nullable anyOf and array items.
+                 */
+                childObject(schema, doc) {
+                    let current = schema;
+                    for (let step = 0; current && step < 6; step++) {
+                        if (current.$ref) { current = this.resolveSchema(current, doc); continue; }
+                        if (current.anyOf) {
+                            const options = this.nonNullOptions(current);
+                            if (options.length !== 1) return null;
+                            current = options[0];
+                            continue;
+                        }
+                        const types = Array.isArray(current.type) ? current.type : [current.type];
+                        if (types.includes('array') && current.items) { current = current.items; continue; }
+                        return current.properties ? current : null;
+                    }
+                    return null;
+                },
+
+                refChain(schema) {
+                    const names = [];
+                    let current = schema;
+                    for (let step = 0; current && step < 6; step++) {
+                        if (current.$ref) names.push(this.refName(current));
+                        current = current.$ref ? null : (this.nonNullOptions(current)[0] || current.items || null);
+                    }
+                    return names;
+                },
+
+                schemaRows(schema, depth = 0, seen = [], prefix = '') {
+                    const object = this.childObject(schema, this.doc);
+                    if (!object || depth > 5) return [];
+                    const rows = [];
+                    const visited = seen.concat(this.refChain(schema));
+                    for (const [name, prop] of Object.entries(object.properties || {})) {
+                        const key = prefix + name;
+                        rows.push({
+                            key: key,
+                            name: name,
+                            depth: depth,
+                            label: this.typeLabel(prop),
+                            required: (object.required || []).includes(name),
+                            description: prop.description,
+                            default: prop.default,
+                        });
+                        const refs = this.refChain(prop);
+                        if (refs.some(ref => visited.includes(ref))) continue;
+                        rows.push(...this.schemaRows(prop, depth + 1, visited, key + '.'));
+                    }
+                    return rows;
+                },
+
                 buildExample(schema, doc, depth = 0) {
                     if (!schema || depth > 4) return null;
                     const resolved = this.resolveSchema(schema, doc);
                     if (!resolved) return null;
+                    if (resolved.anyOf) {
+                        const option = this.nonNullOptions(resolved)[0];
+                        return option ? this.buildExample(option, doc, depth + 1) : null;
+                    }
+                    if (resolved.const !== undefined) return resolved.const;
+                    if (Array.isArray(resolved.type) && resolved.type.includes('array') && resolved.items) {
+                        return [this.buildExample(resolved.items, doc, depth + 1)];
+                    }
 
                     if (resolved.type === 'array' && resolved.items) {
                         return [this.buildExample(resolved.items, doc, depth + 1)];

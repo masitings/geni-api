@@ -47,8 +47,8 @@ final class Parameter implements JsonSerializable
             $res['description'] = $this->description;
         }
 
-        if ($this->extensions !== []) {
-            $res['x-geni-unresolved'] = $this->extensions;
+        foreach ($this->extensions as $key => $value) {
+            $res[str_starts_with((string) $key, 'x-') ? $key : 'x-'.$key] = $value;
         }
 
         return $res;

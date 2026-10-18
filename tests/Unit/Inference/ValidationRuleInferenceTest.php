@@ -227,3 +227,26 @@ test('extracts request accessor methods with defaults', function () {
     expect($extracted['accessors']['desc']['type'])->toBe('boolean');
     expect($extracted['accessors']['desc']['default'])->toBe(false);
 });
+
+test('maps url, sometimes and rules without a schema equivalent like Scramble', function () {
+    $mapper = new ValidationRuleSchemaMapper;
+
+    $result = $mapper->map([
+        'website' => 'required|url',
+        'name' => 'sometimes|required|string|max:255',
+        'slug' => 'required|string|unique:tags,slug',
+        'ends_at' => 'nullable|date|after_or_equal:starts_at',
+        'price' => 'required|decimal:0,2',
+        'avatar' => 'nullable|mimes:png,jpg',
+    ]);
+
+    $props = $result['schema']->properties;
+
+    expect($props['website']->format)->toBe('uri')
+        ->and($result['required'])->toContain('website', 'slug', 'price')
+        ->and($result['required'])->not->toContain('name')
+        ->and($props['price']->type)->toBe('number')
+        ->and($props['avatar']->format)->toBe('binary')
+        ->and($result['hasFile'])->toBeTrue()
+        ->and($result['diagnostics'])->toBe([]);
+});

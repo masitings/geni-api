@@ -4,6 +4,27 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **JsonResource inference now matches Scramble.** Each `toArray()` key is typed from what it returns:
+  - model attributes from migration columns refined by `$casts` / `casts()` (booleans, arrays, dates, enum classes as component refs), nullable columns as `["type", "null"]`;
+  - literals with `const`, `(bool)`/`(int)`/... casts, nested arrays (objects with `required`), string concatenation, ternaries, `match`, common helpers (`route()`, `url()`, `count()`, ...) and Carbon formatters (`?->toIso8601String()` stays nullable);
+  - relations (`$this->posts`, `whenLoaded('posts')`) as arrays of / references to the related model, nullable for `belongsTo` with a nullable foreign key;
+  - nested resources and collections (`new TeamResource(...)`, `PostResource::make(...)`, `PostResource::collection(...)`) as component references;
+  - `when*` helpers (`when`, `whenLoaded`, `whenCounted`, `whenNotNull`, `whenHas`, `whenAggregated`, `whenExistsLoaded`, `whenPivotLoaded*`) and `mergeWhen` / `mergeUnless` produce optional keys, `merge` required ones;
+  - `parent::toArray()` and `array_merge(parent::toArray(), [...])` document the serialized model.
+- Every resource and model schema now lists its `required` keys.
+- Raw Eloquent responses: `return $user` for a typed parameter, `User::findOrFail()`, `User::query()->...->first()`, `User::all()` / `->get()`. Model schemas honour `$hidden` / `$visible` and the `#[Hidden]` / `#[Visible]` attributes.
+- Validation rules: `url`/`active_url` (`format: uri`), `ipv4`/`ipv6`, `decimal`, `list`, `multiple_of`, `mimes`/`mimetypes`/`extensions` (file upload); `sometimes` makes a field optional; rules with no JSON Schema equivalent (`unique`, `after`, `required_if`, `gt`, ...) are no longer reported as unsupported.
+- The docs UI lists nested properties of objects, `$ref`s, nullable unions and arrays, and shows `const` values, enums and `optional` keys.
+
+### Changed
+
+- **Resource responses are wrapped the way Laravel sends them.** A single resource is documented as `{data: ...}` (or the resource's `$wrap` key, unwrapped when `$wrap = null`) plus `with()` and `additional([...])` keys; a resource collection as `{data: [...]}`; a paginated collection as `{data, links, meta}` instead of the raw paginator shape. Response descriptions follow Scramble (`` `UserResource` ``, ``Array of `UserResource` ``, ``Paginated set of `UserResource` ``). Regenerate committed specs used by `geni:check`.
+- `@response SomeResource` / `#[Response(type: ...)]` naming a resource, model or Data class now produces the same wrapped, fully inferred schema as a returned value instead of a bare `$ref`.
+- Unresolvable resource keys still fall back to `string` with an `x-geni-unresolved` diagnostic.
+
+
 ### Security
 
 - **Reflected XSS in the docs UI**: the `?api=` query string was written into the Alpine `x-data` attribute with HTML escaping only, which the browser decodes before Alpine evaluates it. The API name is now only accepted when it is `default` or a key of `config('geni.apis')` (anything else returns 404), and every value passed to `x-data` goes through `@js()`.
@@ -17,6 +38,8 @@ All notable changes to `masitings/geni-api` will be documented in this file.
 
 ### Fixed
 
+- A declared return type such as `Response` was emitted as an OpenAPI type (`{"type": "Response"}`), which is invalid. `response()->noContent()` is now documented as `204 No content`, and an operation no longer gets a default `200` next to another success response.
+- Operation and parameter extensions (`x-unauthenticated`, `x-api`, `x-geni-unresolved`) were nested under an extra `x-geni-unresolved` key.
 - **Operation title and description now come from the controller method's PHPDoc, the same way Scramble reads them.** The first paragraph becomes the summary (trailing periods removed) and everything after the first blank line becomes the description. Before, Geni ignored that text and fell back to the route name (for example `api.projects.index`), so docs migrated from Scramble lost their titles and descriptions. Precedence: `#[Endpoint(title, description)]`, then `@description`, then the PHPDoc text, then the route name.
 - The docs UI now opens on an API overview (title, version and `info.description`) when the URL has no endpoint hash, instead of jumping to the first endpoint, so the API description is visible like in Scramble. Clicking the API title in the sidebar returns to it. Multi-line descriptions keep their line breaks.
 - An app name containing an apostrophe (for example `Rafi's API`) broke the Alpine expression that renders the sidebar title.

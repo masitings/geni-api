@@ -35,6 +35,12 @@ final class DocumentAssembler
 
     private ResourceResponseInferer $responseInferer;
 
+    /** Migration schema of the document being assembled, for `@response` class inference. */
+    private ?DatabaseSchema $currentDbSchema = null;
+
+    /** Description inferred for the class named in the current `@response` annotation. */
+    private ?string $annotatedResponseDescription = null;
+
     private ErrorResponseInferer $errorInferer;
 
     private PhpDocAnnotationParser $phpDocParser;
@@ -91,6 +97,7 @@ final class DocumentAssembler
         ?string $apiName = null,
     ): OpenApiDocument {
         $this->recordedDiagnostics = [];
+        $this->currentDbSchema = $dbSchema;
         $document = new OpenApiDocument;
 
         $document->info->title = $infoOptions['title'] ?? 'Laravel API';
@@ -227,6 +234,7 @@ final class DocumentAssembler
             ];
 
             // Resolve response type via ResponseTypeResolver (FR-007)
+            $this->annotatedResponseDescription = null;
             $annotatedResponseSchema = $this->resolveAnnotatedResponseSchema($docMethod, $attrMethod, $actionAst, $document);
             $declaredReturnType = ($actionAst?->node instanceof ClassMethod && $actionAst->node->returnType instanceof Name)
                 ? $actionAst->node->returnType->toString()
@@ -336,10 +344,14 @@ final class DocumentAssembler
                 }
 
                 // Add successful / annotated response
-                $targetStatus = $docMethod['response']['status'] ?? $attrMethod['responses'][0]['status'] ?? 200;
-                $targetDescription = $docMethod['response']['description'] ?? $attrMethod['responses'][0]['description'] ?? ($targetStatus === 201 ? 'Created' : 'Successful response');
+                $targetStatus = $docMethod['response']['status'] ?? $attrMethod['responses'][0]['status'] ?? $responseInfo['status'] ?? 200;
+                $targetDescription = $docMethod['response']['description'] ?? $attrMethod['responses'][0]['description']
+                    ?? ($annotatedResponseSchema === null ? ($responseInfo['description'] ?? null) : $this->annotatedResponseDescription)
+                    ?? ($targetStatus === 201 ? 'Created' : 'Successful response');
 
-                if ($final200ResponseSchema->properties !== null || $final200ResponseSchema->ref !== null || $final200ResponseSchema->type !== null) {
+                if ($targetStatus === 204) {
+                    $operation->responses['204'] = ['description' => $targetDescription];
+                } elseif ($final200ResponseSchema->properties !== null || $final200ResponseSchema->ref !== null || $final200ResponseSchema->type !== null || $final200ResponseSchema->anyOf !== null) {
                     $operation->responses[(string) $targetStatus] = [
                         'description' => $targetDescription,
                         'content' => [
@@ -628,6 +640,16 @@ final class DocumentAssembler
         // (e.g. `@response TeamResource` where the file has `use App\Http\Resources\TeamResource;`),
         // matching Scramble's behavior, before falling back to the raw string.
         $resolved = $actionAst?->useImports[$clean] ?? $clean;
+
+        // Resources, models and Data objects are inferred (and wrapped) like returned values
+        if (class_exists($resolved) && $actionAst !== null) {
+            $inferred = $this->responseInferer->inferForClass($resolved, $actionAst, $this->currentDbSchema, $document->components);
+            if ($inferred !== null) {
+                $this->annotatedResponseDescription = $inferred['description'] ?? null;
+
+                return $inferred['schema'];
+            }
+        }
 
         // Check if it's a class
         if (class_exists($resolved)) {

@@ -16,6 +16,24 @@ use Geni\SchemaReader\DatabaseSchema;
  */
 final class ValidationRuleSchemaMapper
 {
+    /** Rules that only say "this is a string" of some shape. */
+    private const STRING_RULES = [
+        'alpha', 'alpha_num', 'alpha_dash', 'ascii', 'lowercase', 'uppercase', 'hex_color', 'mac_address',
+        'ip', 'json', 'timezone', 'starts_with', 'ends_with', 'doesnt_start_with', 'doesnt_end_with', 'not_regex',
+        'current_password',
+    ];
+
+    /** Valid rules with no JSON Schema equivalent. */
+    private const NO_SCHEMA_EFFECT_RULES = [
+        'bail', 'filled', 'distinct', 'unique', 'different', 'same', 'after', 'after_or_equal', 'before', 'before_or_equal',
+        'date_equals', 'in_array', 'not_in', 'gt', 'gte', 'lt', 'lte', 'digits', 'digits_between', 'max_digits', 'min_digits',
+        'accepted', 'accepted_if', 'declined', 'declined_if', 'prohibited', 'prohibited_if', 'prohibited_unless', 'prohibits',
+        'required_if', 'required_if_accepted', 'required_if_declined', 'required_unless', 'required_with', 'required_with_all',
+        'required_without', 'required_without_all', 'required_array_keys', 'missing', 'missing_if', 'missing_unless',
+        'missing_with', 'missing_with_all', 'exclude', 'exclude_if', 'exclude_unless', 'exclude_with', 'exclude_without',
+        'dimensions', 'password', 'contains', 'doesnt_contain', 'any_of',
+    ];
+
     private BackedEnumParser $enumParser;
 
     /** @var list<RuleTransformer> */
@@ -150,6 +168,7 @@ final class ValidationRuleSchemaMapper
     ): array {
         $schema = new Schema;
         $required = false;
+        $sometimes = false;
         $isNullable = false;
         $hasFile = false;
         $diagnostics = [];
@@ -411,6 +430,70 @@ final class ValidationRuleSchemaMapper
                 continue;
             }
 
+            if ($ruleLower === 'sometimes') {
+                $sometimes = true;
+
+                continue;
+            }
+
+            if ($ruleLower === 'present') {
+                $required = true;
+
+                continue;
+            }
+
+            if ($ruleLower === 'url' || $ruleLower === 'active_url') {
+                $schema->type = 'string';
+                $schema->format = 'uri';
+
+                continue;
+            }
+
+            if ($ruleLower === 'ipv4' || $ruleLower === 'ipv6') {
+                $schema->type = 'string';
+                $schema->format = $ruleLower;
+
+                continue;
+            }
+
+            if ($ruleLower === 'decimal') {
+                $schema->type = 'number';
+
+                continue;
+            }
+
+            if ($ruleLower === 'list') {
+                $schema->type = 'array';
+
+                continue;
+            }
+
+            if ($ruleLower === 'multiple_of' && $ruleParam !== null && is_numeric($ruleParam)) {
+                $schema->extensions['multipleOf'] = $ruleParam + 0;
+
+                continue;
+            }
+
+            if ($ruleLower === 'mimes' || $ruleLower === 'mimetypes' || $ruleLower === 'extensions') {
+                $hasFile = true;
+                $schema->type = 'string';
+                $schema->format = 'binary';
+
+                continue;
+            }
+
+            if (in_array($ruleLower, self::STRING_RULES, true)) {
+                $schema->type ??= 'string';
+
+                continue;
+            }
+
+            // Rules that constrain presence, compare against other fields or the
+            // database, or check things a schema cannot express: valid, no-op here.
+            if (in_array($ruleLower, self::NO_SCHEMA_EFFECT_RULES, true)) {
+                continue;
+            }
+
             // Unsupported rule for now
             $diagnostics[] = new InferenceDiagnostic(
                 $file,
@@ -429,7 +512,7 @@ final class ValidationRuleSchemaMapper
 
         return [
             'schema' => $schema,
-            'required' => $required,
+            'required' => $required && ! $sometimes,
             'hasFile' => $hasFile,
             'diagnostics' => $diagnostics,
         ];

@@ -126,9 +126,13 @@ test('infers resource collection with pagination envelope', function () {
     $components = new Components;
     $result = $inferer->inferFromActionAst($ast, null, [], $components);
 
+    // Laravel sends paginated resource collections as {data, links, meta}
     expect($result['schema']->type)->toBe('object');
-    expect($result['schema']->properties)->toHaveKeys(['data', 'current_page', 'last_page', 'total', 'links']);
+    expect(array_keys($result['schema']->properties))->toBe(['data', 'links', 'meta']);
     expect($result['schema']->properties['data']->type)->toBe('array');
+    expect($result['schema']->properties['data']->items->ref)->toBe('#/components/schemas/PostResource');
+    expect($result['schema']->properties['meta']->properties)->toHaveKeys(['current_page', 'last_page', 'total', 'links']);
+    expect($result['description'])->toBe('Paginated set of `PostResource`');
 });
 
 test('infers error responses (422, 403, 404, abort, @throws)', function () {

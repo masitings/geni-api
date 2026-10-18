@@ -37,11 +37,9 @@ final class ResponseTypeResolver
                 return $inferred;
             }
 
-            // Declared return type is specific and overrides inferred
-            $declaredSchema = new Schema;
-            $declaredSchema->type = $declaredReturnType;
+            $declaredSchema = $this->scalarSchema($declaredReturnType);
 
-            return $declaredSchema;
+            return $declaredSchema ?? $inferred;
         }
 
         if ($inferredHasShape) {
@@ -49,13 +47,31 @@ final class ResponseTypeResolver
         }
 
         if ($declaredReturnType !== null) {
-            $declaredSchema = new Schema;
-            $declaredSchema->type = $declaredReturnType;
-
-            return $declaredSchema;
+            // A class name is not an OpenAPI type; only PHP scalars map directly.
+            return $this->scalarSchema($declaredReturnType) ?? new Schema;
         }
 
         return new Schema;
+    }
+
+    private function scalarSchema(string $declaredReturnType): ?Schema
+    {
+        $type = match (strtolower(ltrim($declaredReturnType, '\\'))) {
+            'string' => 'string',
+            'int' => 'integer',
+            'float' => 'number',
+            'bool' => 'boolean',
+            default => null,
+        };
+
+        if ($type === null) {
+            return null;
+        }
+
+        $schema = new Schema;
+        $schema->type = $type;
+
+        return $schema;
     }
 
     /**
@@ -83,7 +99,7 @@ final class ResponseTypeResolver
 
         // If declared type is a Resource class or Model, and inferred has extracted the full properties/ref,
         // the inferred concrete schema is more specific than just the class name string
-        if ($inferred->properties !== null || $inferred->ref !== null) {
+        if ($inferred->properties !== null || $inferred->ref !== null || $inferred->anyOf !== null) {
             return true;
         }
 
